@@ -1,0 +1,398 @@
+/* ================================
+   VOUCHER FORMS - PUBLIC STYLES
+   ================================ */
+
+/* Container */
+.svdp-voucher-form,
+.svdp-cashier-container {
+    max-width: 100%;
+    padding: 20px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+}
+
+.svdp-voucher-form {
+    max-width: 700px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* Instructions */
+.svdp-instructions {
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #006BA8;
+}
+
+.svdp-instructions h2 {
+    color: #006BA8;
+    margin-bottom: 15px;
+    font-size: 1.8em;
+}
+
+.svdp-instructions p {
+    line-height: 1.6;
+    margin-bottom: 10px;
+}
+
+.svdp-important-box {
+    background: #e8f4f8;
+    border-left: 4px solid #006BA8;
+    padding: 15px;
+    margin: 15px 0;
+    border-radius: 4px;
+}
+
+.svdp-important-box p {
+    margin-bottom: 10px;
+}
+
+.svdp-important-box p:last-child {
+    margin-bottom: 0;
+}
+
+/* Form Styles */
+.svdp-form h3 {
+    color: #006BA8;
+    margin-top: 25px;
+    margin-bottom: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #ddd;
+    font-size: 1.3em;
+}
+
+.svdp-form h3:first-of-type {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+}
+
+.svdp-form-row {
+    display: flex;
+    gap: 20px;
+}
+
+.svdp-form-group {
+    margin-bottom: 20px;
+    flex: 1;
+}
+
+.svdp-form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: #333;
+    font-size: 14px;
+}
+
+.svdp-form-group input,
+.svdp-form-group select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.svdp-form-group input:focus,
+.svdp-form-group select:focus {
+    outline: none;
+    border-color: #006BA8;
+    box-shadow: 0 0 0 3px rgba(0, 107, 168, 0.1);
+}
+
+.svdp-help-text {
+    display: block;
+    margin-top: 5px;
+    font-size: 12px;
+    color: #666;
+    font-style: italic;
+    line-height: 1.4;
+}
+
+/* Buttons */
+.svdp-btn {
+    padding: 12px 30px;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background-color 0.2s;
+}
+
+.svdp-btn-primary {
+    background: #006BA8;
+    color: white;
+    width: 100%;
+}
+
+.svdp-btn-primary:hover {
+    background: #005a8c;
+}
+
+.svdp-btn-primary:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+.svdp-btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.svdp-btn-secondary:hover {
+    background: #5a6268;
+}
+
+.svdp-btn-warning {
+    background: #ffc107;
+    color: #000;
+}
+
+.svdp-btn-warning:hover {
+    background: #e0a800;
+}
+
+/* Messages */
+.svdp-message {
+    margin-top: 20px;
+    padding: 15px;
+    border-radius: 5px;
+    line-height: 1.6;
+}
+
+.svdp-message.success {
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.svdp-message.error {
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+/* ================================
+   CASHIER STATION STYLES
+   ================================ */
+
+.svdp-cashier-container {
+    max-width: 100%;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+/* Table Wrapper */
+.svdp-table-wrapper {
+    width: 100%;
+    background: #fff;
+    border-radius: 4px;
+    padding: 10px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.svdp-table-wrapper h2 {
+    margin: 0 0 10px 0;
+    font-size: 16px;
+    color: #006BA8;
+}
+
+.svdp-table-scroll {
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+/* Table Styles */
+#svdpVoucherTable {
+    font-size: 11px !important;
+}
+
+#svdpVoucherTable thead th {
+    padding: 6px 4px !important;
+    background: #006BA8 !important;
+    color: white !important;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+#svdpVoucherTable tbody td {
+    padding: 5px 4px !important;
+    vertical-align: middle;
+}
+
+.svdp-status-dropdown,
+.svdp-coat-dropdown {
+    padding: 3px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    font-size: 11px;
+    width: 90px;
+}
+
+.svdp-status-expired {
+    color: #dc3545;
+    font-weight: 600;
+}
+
+.svdp-status-redeemed {
+    color: #28a745;
+}
+
+.svdp-status-active {
+    color: #007bff;
+}
+
+.svdp-coat-issued {
+    color: #28a745;
+    font-weight: 600;
+    font-size: 10px;
+}
+
+.svdp-coat-not-eligible {
+    color: #6c757d;
+    font-size: 10px;
+}
+
+/* Emergency Form */
+.svdp-emergency-form-wrapper {
+    background: #f5f5f5;
+    padding: 15px;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.svdp-emergency-form-wrapper h3 {
+    margin: 0 0 10px 0;
+    font-size: 16px;
+    color: #006BA8;
+}
+
+/* Modal */
+.svdp-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+}
+
+.svdp-modal-content {
+    background: white;
+    padding: 20px;
+    border-radius: 4px;
+    max-width: 400px;
+    margin: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.svdp-modal-content h3 {
+    margin-top: 0;
+    font-size: 16px;
+}
+
+.svdp-modal-content p {
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.svdp-cashier-name-section {
+    margin-top: 15px;
+}
+
+.svdp-cashier-name-section label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+}
+
+.svdp-cashier-name-section input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    box-sizing: border-box;
+}
+
+.svdp-cashier-name-section small {
+    display: block;
+    margin-top: 5px;
+    color: #666;
+    font-size: 11px;
+}
+
+.svdp-modal-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 15px;
+}
+
+.svdp-modal-buttons .svdp-btn {
+    width: auto;
+    padding: 8px 15px;
+    font-size: 13px;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    .svdp-voucher-form {
+        padding: 15px;
+    }
+    
+    .svdp-form-row {
+        flex-direction: column;
+        gap: 0;
+    }
+}
+
+@media (max-width: 850px) {
+    .svdp-cashier-container {
+        padding: 5px;
+    }
+    
+    #svdpVoucherTable {
+        font-size: 10px !important;
+    }
+}
+
+@media (min-width: 1200px) {
+    .svdp-cashier-container {
+        flex-direction: row;
+        gap: 20px;
+    }
+    
+    .svdp-table-wrapper {
+        flex: 2;
+    }
+    
+    .svdp-emergency-form-wrapper {
+        flex: 1;
+        position: sticky;
+        top: 20px;
+        height: fit-content;
+    }
+}
+
+/* DataTables Overrides */
+.dataTables_wrapper .dataTables_length,
+.dataTables_wrapper .dataTables_filter,
+.dataTables_wrapper .dataTables_info,
+.dataTables_wrapper .dataTables_paginate {
+    font-size: 11px;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+    padding: 2px 6px;
+    font-size: 11px;
+}
