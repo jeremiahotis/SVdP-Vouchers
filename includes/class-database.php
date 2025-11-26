@@ -13,7 +13,7 @@ class SVDP_Database {
         
         // Vouchers table
         $vouchers_table = $wpdb->prefix . 'svdp_vouchers';
-        $vouchers_sql = "CREATE TABLE IF NOT EXISTS $vouchers_table (
+        $vouchers_sql = "CREATE TABLE $vouchers_table (
             id bigint(20) NOT NULL AUTO_INCREMENT,
             first_name varchar(100) NOT NULL,
             last_name varchar(100) NOT NULL,
@@ -25,9 +25,11 @@ class SVDP_Database {
             vincentian_email varchar(200) DEFAULT NULL,
             created_by varchar(50) NOT NULL,
             voucher_created_date date NOT NULL,
+            voucher_value decimal(10,2) NOT NULL DEFAULT 0.00,
             status varchar(50) NOT NULL DEFAULT 'Active',
             redeemed_date date DEFAULT NULL,
             override_note text DEFAULT NULL,
+            denial_reason text DEFAULT NULL,
             coat_status varchar(50) DEFAULT 'Available',
             coat_issued_date date DEFAULT NULL,
             monday_item_id varchar(50) DEFAULT NULL,
