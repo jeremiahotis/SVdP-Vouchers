@@ -152,64 +152,97 @@ class SVDP_Voucher {
      * Create voucher
      */
     public static function create_voucher($request) {
+        $params = $request->get_json_params();
+        
+        $first_name = sanitize_text_field($params['firstName']);
+        $last_name = sanitize_text_field($params['lastName']);
+        $dob = sanitize_text_field($params['dob']);
+        $adults = intval($params['adults']);
+        $children = intval($params['children']);
+        $conference = sanitize_text_field($params['conference']);
+        $vincentian_name = isset($params['vincentianName']) ? sanitize_text_field($params['vincentianName']) : null;
+        $vincentian_email = isset($params['vincentianEmail']) ? sanitize_email($params['vincentianEmail']) : null;
+        $override_note = isset($params['overrideNote']) ? sanitize_text_field($params['overrideNote']) : null;
+        
         global $wpdb;
         $table = $wpdb->prefix . 'svdp_vouchers';
         
-        $data = [
-            'first_name' => sanitize_text_field($request['firstName']),
-            'last_name' => sanitize_text_field($request['lastName']),
-            'dob' => sanitize_text_field($request['dob']),
-            'adults' => intval($request['adults']),
-            'children' => intval($request['children']),
-            'vincentian_name' => sanitize_text_field($request['vincentianName'] ?? ''),
-            'vincentian_email' => sanitize_email($request['vincentianEmail'] ?? ''),
-            'created_by' => sanitize_text_field($request['createdBy']),
-            'voucher_created_date' => date('Y-m-d'),
-            'status' => 'Active',
-            'override_note' => sanitize_textarea_field($request['overrideNote'] ?? ''),
-        ];
-        
-        // Get conference ID
-        $conference_slug = sanitize_text_field($request['conference']);
-        $conference = SVDP_Conference::get_by_slug($conference_slug);
-        
-        if (!$conference) {
-            // Try by name as fallback
-            $conferences = SVDP_Conference::get_all(false);
-            foreach ($conferences as $conf) {
-                if ($conf->name === $conference_slug) {
-                    $conference = $conf;
-                    break;
-                }
-            }
+        // Get conference by slug or name
+        $conference_obj = SVDP_Conference::get_by_slug($conference);
+        if (!$conference_obj) {
+            $conference_obj = $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}svdp_conferences WHERE name = %s",
+                $conference
+            ));
         }
         
-        if (!$conference) {
-            return new WP_Error('invalid_conference', 'Conference not found', ['status' => 400]);
+        if (!$conference_obj) {
+            return new WP_Error('invalid_conference', 'Conference not found');
         }
         
-        $data['conference_id'] = $conference->id;
+        // Calculate voucher value based on conference type
+        $household_size = $adults + $children;
+        if ($conference_obj->is_emergency) {
+            // Emergency vouchers: $10 per person
+            $voucher_value = $household_size * 10;
+        } else {
+            // Conference vouchers: $20 per person
+            $voucher_value = $household_size * 20;
+        }
         
         // Insert voucher
-        $result = $wpdb->insert($table, $data);
+        $result = $wpdb->insert($table, [
+            'first_name' => $first_name,
+            'last_name' => $last_name,
+            'dob' => $dob,
+            'adults' => $adults,
+            'children' => $children,
+            'conference_id' => $conference_obj->id,
+            'vincentian_name' => $vincentian_name,
+            'vincentian_email' => $vincentian_email,
+            'created_by' => $conference_obj->is_emergency ? 'Cashier' : 'Vincentian',
+            'voucher_created_date' => current_time('Y-m-d'),
+            'voucher_value' => $voucher_value,
+            'override_note' => $override_note,
+        ]);
         
-        if (!$result) {
-            return new WP_Error('insert_failed', 'Failed to create voucher', ['status' => 500]);
+        if ($result === false) {
+            return new WP_Error('database_error', 'Failed to create voucher');
         }
         
         $voucher_id = $wpdb->insert_id;
         
-        // Sync to Monday.com if enabled
-        if (get_option('svdp_vouchers_monday_sync_enabled')) {
+        // Calculate next eligible date (90 days from today)
+        $next_eligible = new DateTime();
+        $next_eligible->modify('+90 days');
+        
+        // Calculate coat eligibility (next August 1st if after current August 1st)
+        $coat_eligible_after = null;
+        $today = new DateTime();
+        $current_year = (int)$today->format('Y');
+        $current_month = (int)$today->format('m');
+        
+        if ($current_month >= 8) {
+            $next_august = new DateTime(($current_year + 1) . '-08-01');
+        } else {
+            $next_august = new DateTime($current_year . '-08-01');
+        }
+        $coat_eligible_after = $next_august->format('F j, Y');
+        
+        // Trigger Monday.com sync if enabled
+        if (SVDP_Monday_Sync::is_enabled()) {
             SVDP_Monday_Sync::sync_voucher_to_monday($voucher_id);
         }
         
-        return rest_ensure_response([
+        // Send email notification to conference
+        self::send_conference_notification($voucher_id);
+        
+        return [
             'success' => true,
-            'itemId' => $voucher_id,
-            'validUntil' => date('F j, Y', strtotime('+30 days')),
-            'eligibleAgain' => date('F j, Y', strtotime('+90 days')),
-        ]);
+            'voucher_id' => $voucher_id,
+            'nextEligibleDate' => $next_eligible->format('F j, Y'),
+            'coatEligibleAfter' => $coat_eligible_after,
+        ];
     }
     
     /**
