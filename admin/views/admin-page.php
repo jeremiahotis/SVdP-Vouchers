@@ -2,6 +2,9 @@
     <h1><?php echo esc_html(get_admin_page_title()); ?></h1>
     
     <h2 class="nav-tab-wrapper">
+        <a href="?page=svdp-vouchers&tab=analytics" class="nav-tab <?php echo $active_tab === 'analytics' ? 'nav-tab-active' : ''; ?>">
+            Analytics
+        </a>
         <a href="?page=svdp-vouchers&tab=conferences" class="nav-tab <?php echo $active_tab === 'conferences' ? 'nav-tab-active' : ''; ?>">
             Conferences
         </a>
@@ -12,10 +15,13 @@
             Settings
         </a>
     </h2>
-    
+
     <div class="svdp-admin-content">
         <?php
         switch ($active_tab) {
+            case 'analytics':
+                include 'tab-analytics.php';
+                break;
             case 'conferences':
                 include 'tab-conferences.php';
                 break;
