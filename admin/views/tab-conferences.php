@@ -39,6 +39,7 @@
                     <th>Name</th>
                     <th>Slug</th>
                     <th>Shortcode</th>
+                    <th>Notification Email</th>
                     <th>Monday Label</th>
                     <th>Actions</th>
                 </tr>
@@ -59,6 +60,10 @@
                     <td><code><?php echo esc_html($conference->slug); ?></code></td>
                     <td>
                         <input type="text" readonly value='[svdp_voucher_request conference="<?php echo esc_attr($conference->slug); ?>"]' class="shortcode-input" onclick="this.select()">
+                    </td>
+                    <td>
+                        <input type="email" class="notification-email" value="<?php echo esc_attr($conference->notification_email); ?>" data-id="<?php echo $conference->id; ?>" placeholder="email@example.com" style="width: 100%; max-width: 250px;">
+                        <p class="description" style="margin: 5px 0 0 0; font-size: 11px;">Email to notify when vouchers are created</p>
                     </td>
                     <td>
                         <input type="text" class="monday-label" value="<?php echo esc_attr($conference->monday_label); ?>" data-id="<?php echo $conference->id; ?>" placeholder="Same as name">
