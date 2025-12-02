@@ -25,22 +25,23 @@
                 dataSrc: ''
             },
             columns: [
-                {
-                    data: null,
-                    render: function(data) {
-                        return data.first_name + ' ' + data.last_name;
-                    }
-                },
-                { data: 'dob' },
-                {
-                    data: null,
-                    render: function(data) {
-                        const total = parseInt(data.adults) + parseInt(data.children);
-                        return total + ' ($' + (total * 20) + ')';
-                    }
-                },
-                { data: 'conference_name' },
-                { data: 'voucher_created_date' },
+            {
+                data: null,
+                render: function(data) {
+                    return data.first_name + ' ' + data.last_name;
+                }
+            },
+            { data: 'dob' },
+            {
+                data: null,
+                render: function(data) {
+                    // Display using stored voucher_value
+                    const total = parseInt(data.adults) + parseInt(data.children);
+                    return total + ' ($' + parseFloat(data.voucher_value).toFixed(0) + ')';
+                }
+            },
+            { data: 'conference_name' },
+            { data: 'voucher_created_date' },
                 {
                     data: null,
                     render: function(data) {
@@ -48,9 +49,14 @@
                             return '<span class="svdp-status-expired">Expired</span>';
                         }
                         
+                        if (data.status === 'Redeemed') {
+                            return '<span class="svdp-status-redeemed">Redeemed</span>';
+                        }
+        
+                        // Only Active vouchers can change status
                         let options = '<select class="svdp-status-dropdown" data-id="' + data.id + '">';
-                        options += '<option value="Active"' + (data.status === 'Active' ? ' selected' : '') + '>Active</option>';
-                        options += '<option value="Redeemed"' + (data.status === 'Redeemed' ? ' selected' : '') + '>Redeemed</option>';
+                        options += '<option value="Active" selected>Active</option>';
+                        options += '<option value="Redeemed">Redeem</option>';
                         options += '</select>';
                         return options;
                     }
@@ -197,21 +203,67 @@
                 }),
                 contentType: 'application/json',
                 success: function(response) {
-                    if (response.found) {
-                        // Show override modal
+                    console.log('Duplicate check response:', response);
+                    
+                    if (response.found && response.matchType === 'exact') {
+                        // EXACT match - show override modal
                         showOverrideModal(response, formData);
                         submitBtn.prop('disabled', false).text('Create Emergency Voucher');
+                    } else if (response.found && response.matchType === 'similar') {
+                        // SIMILAR match - show warning, let them decide
+                        showSimilarWarning(response, formData, submitBtn, messageDiv, form);
                     } else {
-                        // Create voucher
+                        // No match - create voucher
                         createEmergencyVoucher(formData, submitBtn, messageDiv, form);
                     }
                 },
                 error: function(xhr) {
+                    console.error('Duplicate check error:', xhr);
                     const error = xhr.responseJSON?.message || 'Error checking for duplicates';
                     messageDiv.html(error).addClass('error').fadeIn();
                     submitBtn.prop('disabled', false).text('Create Emergency Voucher');
                 }
             });
+        });
+    }
+
+    function showSimilarWarning(similarData, formData, submitBtn, messageDiv, form) {
+        let warning = '<div style="background: #fff3cd; border: 2px solid #ffc107; padding: 15px; border-radius: 4px;">';
+        warning += '<strong>⚠️ Similar Name(s) Found</strong><br><br>';
+        warning += 'We found ' + similarData.matches.length + ' voucher(s) with similar name(s) and the same date of birth:<br><br>';
+        
+        similarData.matches.forEach(function(match, index) {
+            warning += '<div style="margin: 10px 0; padding: 10px; background: white; border-left: 3px solid #ffc107;">';
+            warning += '<strong>' + match.firstName + ' ' + match.lastName + '</strong><br>';
+            warning += 'DOB: ' + match.dob + '<br>';
+            warning += 'Conference: ' + match.conference + '<br>';
+            warning += 'Created: ' + match.voucherCreatedDate;
+            if (match.vincentianName) {
+                warning += '<br>By: ' + match.vincentianName;
+            }
+            warning += '</div>';
+        });
+        
+        warning += '<br><strong>Is this the same person with a name variation?</strong><br>';
+        warning += '<div style="margin-top: 15px;">';
+        warning += '<button id="svdpProceedAnyway" class="svdp-btn svdp-btn-warning" style="margin-right: 10px;">No, Create New Voucher</button>';
+        warning += '<button id="svdpCancelSimilar" class="svdp-btn svdp-btn-secondary">Yes, Cancel</button>';
+        warning += '</div>';
+        warning += '</div>';
+        
+        messageDiv.html(warning).removeClass('success error').fadeIn();
+        submitBtn.prop('disabled', false).text('Create Emergency Voucher');
+        
+        // Handle proceed
+        $('#svdpProceedAnyway').on('click', function() {
+            messageDiv.fadeOut();
+            createEmergencyVoucher(formData, submitBtn, messageDiv, form);
+        });
+        
+        // Handle cancel
+        $('#svdpCancelSimilar').on('click', function() {
+            messageDiv.fadeOut();
+            form[0].reset();
         });
     }
     
@@ -230,13 +282,21 @@
         cashierNameSection.show();
         $('#svdpCashierName').val('');
         
-        pendingOverrideData = formData;
+        // Store both formData and duplicateData
+        pendingOverrideData = {
+            formData: formData,
+            duplicateData: duplicateData
+        };
         
         modal.css('display', 'flex');
     }
     
     function initializeModal() {
         $('#svdpCancelOverride').on('click', function() {
+            // Save denied voucher when they cancel
+            if (pendingOverrideData) {
+                saveDeniedVoucher(pendingOverrideData.formData, pendingOverrideData.duplicateData);
+            }
             $('#svdpOverrideModal').hide();
             pendingOverrideData = null;
         });
@@ -255,14 +315,14 @@
             }
             
             // Add override note
-            pendingOverrideData.overrideNote = 'Emergency override by ' + cashierName + ' on ' + new Date().toLocaleDateString();
+            pendingOverrideData.formData.overrideNote = 'Emergency override by ' + cashierName + ' on ' + new Date().toLocaleDateString();
             
             const form = $('#svdpEmergencyForm');
             const submitBtn = form.find('button[type="submit"]');
             const messageDiv = $('#svdpEmergencyMessage');
             
             $('#svdpOverrideModal').hide();
-            createEmergencyVoucher(pendingOverrideData, submitBtn, messageDiv, form);
+            createEmergencyVoucher(pendingOverrideData.formData, submitBtn, messageDiv, form);
             pendingOverrideData = null;
         });
     }
@@ -297,6 +357,34 @@
                 messageDiv.html(error).removeClass('success').addClass('error').fadeIn();
                 submitBtn.prop('disabled', false).text('Create Emergency Voucher');
             }
+        });
+    }
+
+    function saveDeniedVoucher(formData, duplicateData) {
+        // Save denied voucher for tracking (silently in background)
+        const denialReason = 'Duplicate found: ' + duplicateData.firstName + ' ' + duplicateData.lastName + 
+                            ' received voucher from ' + duplicateData.conference + 
+                            ' on ' + duplicateData.voucherCreatedDate + 
+                            '. Next eligible: ' + duplicateData.nextEligibleDate;
+        
+        $.ajax({
+            url: svdpVouchers.restUrl + 'svdp/v1/vouchers/create-denied',
+            method: 'POST',
+            headers: {
+                'X-WP-Nonce': svdpVouchers.nonce
+            },
+            data: JSON.stringify({
+                firstName: formData.firstName,
+                lastName: formData.lastName,
+                dob: formData.dob,
+                adults: formData.adults,
+                children: formData.children,
+                conference: 'emergency',
+                denialReason: denialReason,
+                createdBy: 'Cashier'
+            }),
+            contentType: 'application/json'
+            // Silent - no success/error handling needed
         });
     }
     
