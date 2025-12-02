@@ -66,6 +66,7 @@
             const row = $(this).closest('tr');
             const name = row.find('strong').text().trim();
             const slug = row.find('code').text().trim();
+            const notificationEmail = row.find('.notification-email').val();
             const mondayLabel = row.find('.monday-label').val();
             
             if (confirm('Update this conference?')) {
@@ -78,6 +79,7 @@
                         id: conferenceId,
                         name: name,
                         slug: slug,
+                        notification_email: notificationEmail,
                         monday_label: mondayLabel
                     },
                     success: function(response) {
