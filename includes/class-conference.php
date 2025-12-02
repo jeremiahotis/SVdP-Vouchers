@@ -94,6 +94,10 @@ class SVDP_Conference {
             $update_data['monday_label'] = sanitize_text_field($data['monday_label']);
         }
         
+        if (isset($data['notification_email'])) {
+            $update_data['notification_email'] = sanitize_email($data['notification_email']);
+        }
+        
         if (empty($update_data)) {
             return false;
         }
