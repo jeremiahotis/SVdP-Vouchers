@@ -1,22 +1,20 @@
 <?php
 /**
  * Plugin Name: SVdP Vouchers
- * Plugin URI: https://svdpfortwayne.org
- * Description: Virtual clothing voucher management system for St. Vincent de Paul with optional Monday.com sync
+ * Description: Virtual clothing voucher management system for St. Vincent de Paul
  * Version: 1.0.0
- * Author: St. Vincent de Paul Fort Wayne
- * Author URI: https://svdpfortwayne.org
- * License: GPL-2.0+
- * License URI: http://www.gnu.org/licenses/gpl-2.0.txt
+ * Author: Jeremiah Otis
+ * License: GPL v2 or later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: svdp-vouchers
  */
 
-// If this file is called directly, abort.
-if (!defined('WPINC')) {
-    die;
+// Exit if accessed directly
+if (!defined('ABSPATH')) {
+    exit;
 }
 
-// Plugin constants
+// Define plugin constants
 define('SVDP_VOUCHERS_VERSION', '1.0.0');
 define('SVDP_VOUCHERS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SVDP_VOUCHERS_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -30,127 +28,162 @@ require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-shortcodes.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-admin.php';
 
 /**
- * Plugin activation
+ * Main plugin class
  */
-function svdp_vouchers_activate() {
-    // Create database tables
-    SVDP_Database::create_tables();
+class SVDP_Vouchers_Plugin {
     
-    // Create Cashier role
-    svdp_vouchers_create_cashier_role();
+    public function __construct() {
+        // Activation/Deactivation hooks
+        register_activation_hook(__FILE__, [$this, 'activate']);
+        register_deactivation_hook(__FILE__, [$this, 'deactivate']);
+        
+        // Initialize plugin
+        add_action('plugins_loaded', [$this, 'init']);
+        
+        // Register REST API endpoints
+        add_action('rest_api_init', [$this, 'register_rest_routes']);
+        
+        // Enqueue assets
+        add_action('wp_enqueue_scripts', [$this, 'enqueue_frontend_assets']);
+    }
     
-    // Flush rewrite rules
-    flush_rewrite_rules();
-}
-register_activation_hook(__FILE__, 'svdp_vouchers_activate');
-
-/**
- * Plugin deactivation
- */
-function svdp_vouchers_deactivate() {
-    flush_rewrite_rules();
-}
-register_deactivation_hook(__FILE__, 'svdp_vouchers_deactivate');
-
-/**
- * Create Cashier user role
- */
-function svdp_vouchers_create_cashier_role() {
-    add_role(
-        'svdp_cashier',
-        __('SVdP Cashier', 'svdp-vouchers'),
-        [
+    /**
+     * Plugin activation
+     */
+    public function activate() {
+        // Create database tables
+        SVDP_Database::create_tables();
+        
+        // Create cashier role
+        $this->create_cashier_role();
+        
+        // Flush rewrite rules
+        flush_rewrite_rules();
+    }
+    
+    /**
+     * Plugin deactivation
+     */
+    public function deactivate() {
+        // Flush rewrite rules
+        flush_rewrite_rules();
+    }
+    
+    /**
+     * Create cashier role
+     */
+    private function create_cashier_role() {
+        // Add custom role for cashiers
+        add_role('svdp_cashier', 'SVdP Cashier', [
             'read' => true,
             'access_cashier_station' => true,
-        ]
-    );
-}
-
-/**
- * Initialize plugin
- */
-function svdp_vouchers_init() {
-    // Initialize classes
-    new SVDP_Shortcodes();
-    new SVDP_Admin();
+        ]);
+    }
     
-    // Enqueue public styles and scripts
-    add_action('wp_enqueue_scripts', 'svdp_vouchers_enqueue_public_assets');
-}
-add_action('plugins_loaded', 'svdp_vouchers_init');
+    /**
+     * Initialize plugin components
+     */
+    public function init() {
+        // Initialize shortcodes
+        new SVDP_Shortcodes();
+        
+        // Initialize admin
+        if (is_admin()) {
+            new SVDP_Admin();
+        }
+    }
+    
+    /**
+     * Register REST API routes
+     */
+    public function register_rest_routes() {
+        // Get all vouchers
+        register_rest_route('svdp/v1', '/vouchers', [
+            'methods' => 'GET',
+            'callback' => ['SVDP_Voucher', 'get_vouchers'],
+            'permission_callback' => function() {
+                return is_user_logged_in();
+            }
+        ]);
+        
+        // Check for duplicate
+        register_rest_route('svdp/v1', '/vouchers/check-duplicate', [
+            'methods' => 'POST',
+            'callback' => ['SVDP_Voucher', 'check_duplicate'],
+            'permission_callback' => '__return_true'
+        ]);
+        
+        // Create voucher
+        register_rest_route('svdp/v1', '/vouchers/create', [
+            'methods' => 'POST',
+            'callback' => ['SVDP_Voucher', 'create_voucher'],
+            'permission_callback' => '__return_true'
+        ]);
+        
+        // Update voucher status
+        register_rest_route('svdp/v1', '/vouchers/(?P<id>\d+)/status', [
+            'methods' => 'PATCH',
+            'callback' => ['SVDP_Voucher', 'update_status'],
+            'permission_callback' => function() {
+                return is_user_logged_in();
+            }
+        ]);
+        
+        // Update coat status
+        register_rest_route('svdp/v1', '/vouchers/(?P<id>\d+)/coat', [
+            'methods' => 'PATCH',
+            'callback' => ['SVDP_Voucher', 'update_coat_status'],
+            'permission_callback' => function() {
+                return is_user_logged_in();
+            }
+        ]);
+        
+        // Get conferences
+        register_rest_route('svdp/v1', '/conferences', [
+            'methods' => 'GET',
+            'callback' => ['SVDP_Conference', 'get_conferences'],
+            'permission_callback' => '__return_true'
+        ]);
 
-/**
- * Enqueue public assets
- */
-function svdp_vouchers_enqueue_public_assets() {
-    // Only enqueue on pages with our shortcodes
-    global $post;
-    if (is_a($post, 'WP_Post') && (has_shortcode($post->post_content, 'svdp_voucher_request') || has_shortcode($post->post_content, 'svdp_cashier_station'))) {
-        
-        wp_enqueue_style('svdp-vouchers-public', SVDP_VOUCHERS_PLUGIN_URL . 'public/css/voucher-forms.css', [], SVDP_VOUCHERS_VERSION);
-        
-        // Enqueue DataTables for cashier station
-        if (has_shortcode($post->post_content, 'svdp_cashier_station')) {
-            wp_enqueue_style('datatables', 'https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css');
-            wp_enqueue_script('datatables', 'https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js', ['jquery'], null, true);
+        // Create denied voucher (for tracking)
+        register_rest_route('svdp/v1', '/vouchers/create-denied', [
+            'methods' => 'POST',
+            'callback' => ['SVDP_Voucher', 'create_denied_voucher'],
+            'permission_callback' => '__return_true'
+        ]);
+    }
+    
+    /**
+     * Enqueue frontend assets
+     */
+    public function enqueue_frontend_assets() {
+        // Only on frontend
+        if (is_admin()) {
+            return;
         }
         
-        wp_enqueue_script('svdp-vouchers-public', SVDP_VOUCHERS_PLUGIN_URL . 'public/js/voucher-request.js', ['jquery'], SVDP_VOUCHERS_VERSION, true);
+        // Always enqueue CSS
+        wp_enqueue_style('svdp-vouchers-public', SVDP_VOUCHERS_PLUGIN_URL . 'public/css/voucher-forms.css', [], SVDP_VOUCHERS_VERSION);
         
-        // Localize script with API endpoints
-        wp_localize_script('svdp-vouchers-public', 'svdpVouchers', [
+        // DataTables (for cashier station)
+        wp_enqueue_style('datatables', 'https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css');
+        wp_enqueue_script('datatables', 'https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js', ['jquery'], null, true);
+        
+        // Enqueue both JS files (they only activate on their respective pages)
+        wp_enqueue_script('svdp-vouchers-request', SVDP_VOUCHERS_PLUGIN_URL . 'public/js/voucher-request.js', ['jquery'], SVDP_VOUCHERS_VERSION, true);
+        wp_enqueue_script('svdp-vouchers-cashier', SVDP_VOUCHERS_PLUGIN_URL . 'public/js/cashier-station.js', ['jquery', 'datatables'], SVDP_VOUCHERS_VERSION, true);
+        
+        // Localize scripts
+        $script_data = [
             'ajaxUrl' => admin_url('admin-ajax.php'),
-            'restUrl' => rest_url('svdp/v1/'),
-            'nonce' => wp_create_nonce('svdp_vouchers_nonce'),
-        ]);
+            'restUrl' => rest_url(),
+            'nonce' => wp_create_nonce('wp_rest'),
+        ];
+        
+        wp_localize_script('svdp-vouchers-request', 'svdpVouchers', $script_data);
+        wp_localize_script('svdp-vouchers-cashier', 'svdpVouchers', $script_data);
     }
 }
 
-/**
- * Register REST API endpoints
- */
-add_action('rest_api_init', function() {
-    
-    // Get all vouchers
-    register_rest_route('svdp/v1', '/vouchers', [
-        'methods' => 'GET',
-        'callback' => [SVDP_Voucher::class, 'get_vouchers'],
-        'permission_callback' => '__return_true',
-    ]);
-    
-    // Check for duplicate
-    register_rest_route('svdp/v1', '/vouchers/check-duplicate', [
-        'methods' => 'POST',
-        'callback' => [SVDP_Voucher::class, 'check_duplicate'],
-        'permission_callback' => '__return_true',
-    ]);
-    
-    // Create voucher
-    register_rest_route('svdp/v1', '/vouchers/create', [
-        'methods' => 'POST',
-        'callback' => [SVDP_Voucher::class, 'create_voucher'],
-        'permission_callback' => '__return_true',
-    ]);
-    
-    // Update voucher status
-    register_rest_route('svdp/v1', '/vouchers/(?P<id>\d+)/status', [
-        'methods' => 'PATCH',
-        'callback' => [SVDP_Voucher::class, 'update_status'],
-        'permission_callback' => '__return_true',
-    ]);
-    
-    // Update coat status
-    register_rest_route('svdp/v1', '/vouchers/(?P<id>\d+)/coat', [
-        'methods' => 'PATCH',
-        'callback' => [SVDP_Voucher::class, 'update_coat_status'],
-        'permission_callback' => '__return_true',
-    ]);
-    
-    // Get conferences
-    register_rest_route('svdp/v1', '/conferences', [
-        'methods' => 'GET',
-        'callback' => [SVDP_Conference::class, 'get_conferences'],
-        'permission_callback' => '__return_true',
-    ]);
-    
-});
+// Initialize plugin
+new SVDP_Vouchers_Plugin();
