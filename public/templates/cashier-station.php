@@ -42,15 +42,19 @@
             </div>
             
             <div class="svdp-form-row">
+                <div class="svdp-form-row">
                 <div class="svdp-form-group">
                     <label># Adults *</label>
                     <input type="number" name="adults" min="0" value="1" required>
+                    <small class="svdp-help-text">Emergency: $10 per person</small>
                 </div>
                 
                 <div class="svdp-form-group">
                     <label># Children *</label>
                     <input type="number" name="children" min="0" value="0" required>
+                    <small class="svdp-help-text">Emergency: $10 per person</small>
                 </div>
+            </div>
             </div>
             
             <button type="submit" class="svdp-btn svdp-btn-primary">Create Emergency Voucher</button>
