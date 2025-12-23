@@ -24,7 +24,10 @@
                     action: 'svdp_add_conference',
                     nonce: svdpAdmin.nonce,
                     name: $('#conference_name').val(),
-                    slug: $('#conference_slug').val()
+                    slug: $('#conference_slug').val(),
+                    organization_type: $('input[name="organization_type"]:checked').val(),
+                    eligibility_days: $('#eligibility_days').val(),
+                    regular_items: $('#regular_items').val()
                 },
                 success: function(response) {
                     if (response.success) {
@@ -67,9 +70,10 @@
             const name = row.find('strong').text().trim();
             const slug = row.find('code').text().trim();
             const notificationEmail = row.find('.notification-email').val();
-            const mondayLabel = row.find('.monday-label').val();
-            
-            if (confirm('Update this conference?')) {
+            const eligibilityDays = row.find('.eligibility-days').val();
+            const itemsPerPerson = row.find('.items-per-person').val();
+
+            if (confirm('Update this organization?')) {
                 $.ajax({
                     url: svdpAdmin.ajaxUrl,
                     method: 'POST',
@@ -80,7 +84,8 @@
                         name: name,
                         slug: slug,
                         notification_email: notificationEmail,
-                        monday_label: mondayLabel
+                        eligibility_days: eligibilityDays,
+                        items_per_person: itemsPerPerson
                     },
                     success: function(response) {
                         if (response.success) {

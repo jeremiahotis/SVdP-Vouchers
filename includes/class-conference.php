@@ -46,26 +46,31 @@ class SVDP_Conference {
     /**
      * Create conference
      */
-    public static function create($name, $slug = '', $is_emergency = 0) {
+    public static function create($name, $slug = '', $is_emergency = 0, $organization_type = 'conference', $eligibility_days = 90, $regular_items = 7) {
         global $wpdb;
         $table = $wpdb->prefix . 'svdp_conferences';
-        
+
         // Generate slug if not provided
         if (empty($slug)) {
             $slug = sanitize_title($name);
         }
-        
+
         $result = $wpdb->insert($table, [
             'name' => sanitize_text_field($name),
             'slug' => sanitize_title($slug),
             'is_emergency' => intval($is_emergency),
+            'organization_type' => sanitize_text_field($organization_type),
+            'eligibility_days' => intval($eligibility_days),
+            'regular_items_per_person' => intval($regular_items),
+            'emergency_items_per_person' => 3, // Default for emergency vouchers
+            'allowed_voucher_types' => json_encode(['clothing']), // Default
             'active' => 1,
         ]);
-        
+
         if ($result) {
             return $wpdb->insert_id;
         }
-        
+
         return false;
     }
     
@@ -89,15 +94,31 @@ class SVDP_Conference {
         if (isset($data['active'])) {
             $update_data['active'] = intval($data['active']);
         }
-        
-        if (isset($data['monday_label'])) {
-            $update_data['monday_label'] = sanitize_text_field($data['monday_label']);
-        }
-        
+
         if (isset($data['notification_email'])) {
             $update_data['notification_email'] = sanitize_email($data['notification_email']);
         }
-        
+
+        if (isset($data['eligibility_days'])) {
+            $update_data['eligibility_days'] = intval($data['eligibility_days']);
+        }
+
+        if (isset($data['items_per_person'])) {
+            $update_data['regular_items_per_person'] = intval($data['items_per_person']);
+        }
+
+        if (isset($data['allowed_voucher_types'])) {
+            $update_data['allowed_voucher_types'] = $data['allowed_voucher_types']; // Already JSON
+        }
+
+        if (isset($data['custom_form_text'])) {
+            $update_data['custom_form_text'] = sanitize_textarea_field($data['custom_form_text']);
+        }
+
+        if (isset($data['custom_rules_text'])) {
+            $update_data['custom_rules_text'] = sanitize_textarea_field($data['custom_rules_text']);
+        }
+
         if (empty($update_data)) {
             return false;
         }

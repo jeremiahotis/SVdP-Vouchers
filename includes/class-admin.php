@@ -13,7 +13,11 @@ class SVDP_Admin {
         add_action('wp_ajax_svdp_add_conference', [$this, 'ajax_add_conference']);
         add_action('wp_ajax_svdp_delete_conference', [$this, 'ajax_delete_conference']);
         add_action('wp_ajax_svdp_update_conference', [$this, 'ajax_update_conference']);
-        
+        add_action('wp_ajax_svdp_save_settings', [$this, 'ajax_save_settings']);
+        add_action('wp_ajax_svdp_update_voucher_types', [$this, 'ajax_update_voucher_types']);
+        add_action('wp_ajax_svdp_get_custom_text', [$this, 'ajax_get_custom_text']);
+        add_action('wp_ajax_svdp_save_custom_text', [$this, 'ajax_save_custom_text']);
+
         // Export handler
         add_action('admin_post_svdp_export_vouchers', [$this, 'export_vouchers']);
     }
@@ -37,11 +41,7 @@ class SVDP_Admin {
      * Register settings
      */
     public function register_settings() {
-        // Monday.com sync settings
-        register_setting('svdp_vouchers_monday', 'svdp_vouchers_monday_sync_enabled');
-        register_setting('svdp_vouchers_monday', 'svdp_vouchers_monday_api_key');
-        register_setting('svdp_vouchers_monday', 'svdp_vouchers_monday_board_id');
-        register_setting('svdp_vouchers_monday', 'svdp_vouchers_monday_column_ids');
+        // Settings are now managed via SVDP_Settings class and database table
     }
     
     /**
@@ -74,23 +74,26 @@ class SVDP_Admin {
      */
     public function ajax_add_conference() {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
-        
+
         if (!current_user_can('manage_options')) {
             wp_send_json_error('Permission denied');
         }
-        
+
         $name = sanitize_text_field($_POST['name']);
         $slug = sanitize_title($_POST['slug']);
-        
+        $org_type = sanitize_text_field($_POST['organization_type'] ?? 'conference');
+        $eligibility_days = intval($_POST['eligibility_days'] ?? 90);
+        $regular_items = intval($_POST['regular_items'] ?? 7);
+
         if (empty($name)) {
-            wp_send_json_error('Conference name is required');
+            wp_send_json_error('Organization name is required');
         }
-        
-        $id = SVDP_Conference::create($name, $slug);
-        
+
+        $id = SVDP_Conference::create($name, $slug, 0, $org_type, $eligibility_days, $regular_items);
+
         if ($id) {
             wp_send_json_success([
-                'message' => 'Conference added successfully',
+                'message' => 'Organization added successfully',
                 'conference' => SVDP_Conference::get_by_id($id),
             ]);
         } else {
@@ -132,13 +135,114 @@ class SVDP_Admin {
             'name' => sanitize_text_field($_POST['name']),
             'slug' => sanitize_title($_POST['slug']),
             'notification_email' => sanitize_email($_POST['notification_email']),
-            'monday_label' => sanitize_text_field($_POST['monday_label']),
+            'eligibility_days' => intval($_POST['eligibility_days']),
+            'items_per_person' => intval($_POST['items_per_person']),
         ];
         
         if (SVDP_Conference::update($id, $data)) {
             wp_send_json_success('Conference updated successfully');
         } else {
             wp_send_json_error('Failed to update conference');
+        }
+    }
+
+    /**
+     * Save plugin settings
+     */
+    public function ajax_save_settings() {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Permission denied');
+        }
+
+        // Sanitize and save each setting
+        $settings = [
+            'adult_item_value' => ['value' => sanitize_text_field($_POST['adult_item_value']), 'type' => 'decimal'],
+            'child_item_value' => ['value' => sanitize_text_field($_POST['child_item_value']), 'type' => 'decimal'],
+            'store_hours' => ['value' => sanitize_text_field($_POST['store_hours']), 'type' => 'text'],
+            'redemption_instructions' => ['value' => sanitize_textarea_field($_POST['redemption_instructions']), 'type' => 'textarea'],
+            'available_voucher_types' => ['value' => sanitize_text_field($_POST['available_voucher_types']), 'type' => 'text'],
+        ];
+
+        $success = true;
+        foreach ($settings as $key => $setting) {
+            if (!SVDP_Settings::update_setting($key, $setting['value'], $setting['type'])) {
+                $success = false;
+                break;
+            }
+        }
+
+        if ($success) {
+            wp_send_json_success('Settings saved successfully');
+        } else {
+            wp_send_json_error('Failed to save settings');
+        }
+    }
+
+    /**
+     * AJAX: Update organization voucher types
+     */
+    public function ajax_update_voucher_types() {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Permission denied');
+        }
+
+        $id = intval($_POST['id']);
+        $voucher_types = $_POST['voucher_types']; // Already JSON string
+
+        if (SVDP_Conference::update($id, ['allowed_voucher_types' => $voucher_types])) {
+            wp_send_json_success('Voucher types updated successfully');
+        } else {
+            wp_send_json_error('Failed to update voucher types');
+        }
+    }
+
+    /**
+     * AJAX: Get organization custom text
+     */
+    public function ajax_get_custom_text() {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Permission denied');
+        }
+
+        $id = intval($_POST['id']);
+        $conference = SVDP_Conference::get_by_id($id);
+
+        if ($conference) {
+            wp_send_json_success([
+                'custom_form_text' => $conference->custom_form_text ?? '',
+                'custom_rules_text' => $conference->custom_rules_text ?? ''
+            ]);
+        } else {
+            wp_send_json_error('Organization not found');
+        }
+    }
+
+    /**
+     * AJAX: Save organization custom text
+     */
+    public function ajax_save_custom_text() {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Permission denied');
+        }
+
+        $id = intval($_POST['id']);
+        $data = [
+            'custom_form_text' => sanitize_textarea_field($_POST['custom_form_text']),
+            'custom_rules_text' => sanitize_textarea_field($_POST['custom_rules_text'])
+        ];
+
+        if (SVDP_Conference::update($id, $data)) {
+            wp_send_json_success('Custom text saved successfully');
+        } else {
+            wp_send_json_error('Failed to save custom text');
         }
     }
 
@@ -189,7 +293,7 @@ class SVDP_Admin {
                 v.adults,
                 v.children,
                 (v.adults + v.children) as household_size,
-                ((v.adults + v.children) * 20) as voucher_value,
+                v.voucher_value,
                 c.name as conference,
                 v.vincentian_name,
                 v.vincentian_email,

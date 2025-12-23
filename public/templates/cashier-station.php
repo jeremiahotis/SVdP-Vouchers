@@ -1,68 +1,113 @@
 <div class="svdp-cashier-container">
-    
-    <!-- Voucher Table -->
-    <div class="svdp-table-wrapper">
-        <h2>Active Vouchers</h2>
-        <div class="svdp-table-scroll">
-            <table id="svdpVoucherTable" class="display compact" style="width:100%; font-size: 12px;">
-                <thead>
-                    <tr>
-                        <th>Neighbor</th>
-                        <th>DOB</th>
-                        <th>Qty</th>
-                        <th>Conference</th>
-                        <th>Created</th>
-                        <th>Status</th>
-                        <th>Redeemed</th>
-                        <th>Winter Coat</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
+
+    <!-- Header with Search and Filters -->
+    <div class="svdp-cashier-header">
+        <h1>Cashier Station</h1>
+
+        <div class="svdp-search-filter-bar">
+            <div class="svdp-search-box">
+                <input type="text" id="svdpSearchInput" placeholder="Search by name, DOB, or conference...">
+            </div>
+
+            <div class="svdp-filter-buttons">
+                <button class="svdp-filter-btn active" data-filter="all">All</button>
+                <button class="svdp-filter-btn" data-filter="active">Active</button>
+                <button class="svdp-filter-btn" data-filter="redeemed">Redeemed</button>
+                <button class="svdp-filter-btn" data-filter="expired">Expired</button>
+                <button class="svdp-filter-btn" data-filter="coat-available">Coat Available</button>
+            </div>
+
+            <select class="svdp-sort-dropdown" id="svdpSortDropdown">
+                <option value="date-desc">Newest First</option>
+                <option value="date-asc">Oldest First</option>
+                <option value="name-asc">Name A-Z</option>
+                <option value="name-desc">Name Z-A</option>
+            </select>
         </div>
     </div>
-    
-    <!-- Emergency Voucher Form -->
-    <div class="svdp-emergency-form-wrapper">
-        <h3>Emergency Voucher</h3>
-        <form id="svdpEmergencyForm" class="svdp-form">
-            <div class="svdp-form-group">
-                <label>First Name *</label>
-                <input type="text" name="firstName" required>
-            </div>
-            
-            <div class="svdp-form-group">
-                <label>Last Name *</label>
-                <input type="text" name="lastName" required>
-            </div>
-            
-            <div class="svdp-form-group">
-                <label>Date of Birth *</label>
-                <input type="date" name="dob" required>
-            </div>
-            
-            <div class="svdp-form-row">
-                <div class="svdp-form-row">
-                <div class="svdp-form-group">
-                    <label># Adults *</label>
-                    <input type="number" name="adults" min="0" value="1" required>
-                    <small class="svdp-help-text">Emergency: $10 per person</small>
-                </div>
-                
-                <div class="svdp-form-group">
-                    <label># Children *</label>
-                    <input type="number" name="children" min="0" value="0" required>
-                    <small class="svdp-help-text">Emergency: $10 per person</small>
-                </div>
-            </div>
-            </div>
-            
-            <button type="submit" class="svdp-btn svdp-btn-primary">Create Emergency Voucher</button>
-        </form>
-        
-        <div id="svdpEmergencyMessage" class="svdp-message" style="display: none;"></div>
+
+    <!-- Stats Bar -->
+    <div class="svdp-stats-bar">
+        <div class="svdp-stat-item">
+            <span class="svdp-stat-label">Active Vouchers</span>
+            <span class="svdp-stat-value" id="statActive">-</span>
+        </div>
+        <div class="svdp-stat-item">
+            <span class="svdp-stat-label">Redeemed Today</span>
+            <span class="svdp-stat-value" id="statRedeemed">-</span>
+        </div>
+        <div class="svdp-stat-item">
+            <span class="svdp-stat-label">Coats Available</span>
+            <span class="svdp-stat-value" id="statCoats">-</span>
+        </div>
+        <div class="svdp-stat-item">
+            <span class="svdp-stat-label">Showing</span>
+            <span class="svdp-stat-value" id="statShowing">-</span>
+        </div>
     </div>
-    
+
+    <!-- Main Content Layout -->
+    <div class="svdp-main-content">
+
+        <!-- Vouchers Section -->
+        <div class="svdp-vouchers-section">
+            <!-- Loading State -->
+            <div id="svdpLoadingState" class="svdp-loading">
+                <div class="svdp-spinner"></div>
+                <p>Loading vouchers...</p>
+            </div>
+
+            <!-- Vouchers Container -->
+            <div id="svdpVouchersContainer" class="svdp-vouchers-container"></div>
+
+            <!-- Load More Button -->
+            <button id="svdpLoadMore" class="svdp-btn svdp-load-more" style="display: none;">
+                Load More Vouchers
+            </button>
+        </div>
+
+        <!-- Emergency Voucher Form Sidebar -->
+        <div class="svdp-emergency-form-wrapper">
+            <h3>Emergency Voucher</h3>
+
+            <div id="svdpEmergencyMessage" class="svdp-message" style="display: none;"></div>
+
+            <form id="svdpEmergencyForm" class="svdp-form">
+                <div class="svdp-form-group">
+                    <label>First Name *</label>
+                    <input type="text" name="firstName" required>
+                </div>
+
+                <div class="svdp-form-group">
+                    <label>Last Name *</label>
+                    <input type="text" name="lastName" required>
+                </div>
+
+                <div class="svdp-form-group">
+                    <label>Date of Birth *</label>
+                    <input type="date" name="dob" required>
+                </div>
+
+                <div class="svdp-form-row">
+                    <div class="svdp-form-group">
+                        <label># Adults *</label>
+                        <input type="number" name="adults" min="0" value="1" required>
+                        <small class="svdp-help-text">Emergency: $10 per person</small>
+                    </div>
+
+                    <div class="svdp-form-group">
+                        <label># Children *</label>
+                        <input type="number" name="children" min="0" value="0" required>
+                        <small class="svdp-help-text">Emergency: $10 per person</small>
+                    </div>
+                </div>
+
+                <button type="submit" class="svdp-btn svdp-btn-primary">Create Emergency Voucher</button>
+            </form>
+        </div>
+
+    </div>
+
 </div>
 
 <!-- Override Modal -->
@@ -70,16 +115,49 @@
     <div class="svdp-modal-content">
         <h3>⚠️ Duplicate Found</h3>
         <p id="svdpOverrideMessage"></p>
-        
+
         <div id="svdpCashierNameSection" class="svdp-cashier-name-section" style="display: none;">
             <label for="svdpCashierName">Your Name *</label>
             <input type="text" id="svdpCashierName" placeholder="Enter your name" required>
             <small>This will be recorded in the override note for accountability.</small>
         </div>
-        
+
         <div class="svdp-modal-buttons">
             <button id="svdpCancelOverride" class="svdp-btn svdp-btn-secondary">Cancel</button>
             <button id="svdpConfirmOverride" class="svdp-btn svdp-btn-warning">Override & Create</button>
         </div>
+    </div>
+</div>
+
+<!-- Coat Issue Modal -->
+<div id="svdpCoatModal" class="svdp-modal">
+    <div class="svdp-modal-content">
+        <h3>🧥 Issue Winter Coats</h3>
+        <p id="svdpCoatVoucherInfo" style="margin-bottom: 20px; padding: 10px; background: #f0f0f0; border-radius: 4px;"></p>
+
+        <form id="svdpCoatForm">
+            <input type="hidden" id="svdpCoatVoucherId" value="">
+
+            <div class="svdp-form-group">
+                <label for="svdpCoatAdults"># of Adult Coats *</label>
+                <input type="number" id="svdpCoatAdults" min="0" value="0" required>
+                <small>Maximum: <span id="svdpCoatMaxAdults">0</span> adults in household</small>
+            </div>
+
+            <div class="svdp-form-group">
+                <label for="svdpCoatChildren"># of Children's Coats *</label>
+                <input type="number" id="svdpCoatChildren" min="0" value="0" required>
+                <small>Maximum: <span id="svdpCoatMaxChildren">0</span> children in household</small>
+            </div>
+
+            <div id="svdpCoatTotal" style="margin: 15px 0; padding: 10px; background: #e8f4f8; border-left: 4px solid #006BA8; font-weight: bold;">
+                Total Coats: <span id="svdpCoatTotalCount">0</span>
+            </div>
+
+            <div class="svdp-modal-buttons">
+                <button type="button" id="svdpCancelCoat" class="svdp-btn svdp-btn-secondary">Cancel</button>
+                <button type="submit" id="svdpConfirmCoat" class="svdp-btn svdp-btn-primary">Issue Coats</button>
+            </div>
+        </form>
     </div>
 </div>

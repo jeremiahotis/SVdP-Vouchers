@@ -39,9 +39,26 @@ $conference_stats = $wpdb->get_results("
     ORDER BY voucher_count DESC
 ");
 
-// Coat stats
-$coats_issued = $wpdb->get_var("SELECT COUNT(*) FROM $vouchers_table WHERE coat_status = 'Issued'");
-$coats_issued_this_season = $wpdb->get_var("SELECT COUNT(*) FROM $vouchers_table WHERE coat_status = 'Issued' AND coat_issued_date >= DATE_FORMAT(CURDATE(), '%Y-08-01')");
+// Coat stats - All Time
+$coats_adults_all_time = $wpdb->get_var("SELECT COALESCE(SUM(coat_adults_issued), 0) FROM $vouchers_table WHERE coat_status = 'Issued'");
+$coats_children_all_time = $wpdb->get_var("SELECT COALESCE(SUM(coat_children_issued), 0) FROM $vouchers_table WHERE coat_status = 'Issued'");
+$coats_total_all_time = $coats_adults_all_time + $coats_children_all_time;
+
+// Calculate the start of current coat season (most recent August 1st)
+$current_month = date('n'); // 1-12
+$current_year = date('Y');
+$season_start_date = ($current_month >= 8) ? "$current_year-08-01" : ($current_year - 1) . "-08-01";
+
+// Coat stats - This Season
+$coats_adults_this_season = $wpdb->get_var($wpdb->prepare(
+    "SELECT COALESCE(SUM(coat_adults_issued), 0) FROM $vouchers_table WHERE coat_status = 'Issued' AND coat_issued_date >= %s",
+    $season_start_date
+));
+$coats_children_this_season = $wpdb->get_var($wpdb->prepare(
+    "SELECT COALESCE(SUM(coat_children_issued), 0) FROM $vouchers_table WHERE coat_status = 'Issued' AND coat_issued_date >= %s",
+    $season_start_date
+));
+$coats_total_this_season = $coats_adults_this_season + $coats_children_this_season;
 ?>
 
 <div class="svdp-analytics-tab">
@@ -102,12 +119,14 @@ $coats_issued_this_season = $wpdb->get_var("SELECT COUNT(*) FROM $vouchers_table
                 <div class="stat-label">Total Value Provided</div>
             </div>
             <div class="stat-box info">
-                <div class="stat-number"><?php echo number_format($coats_issued); ?></div>
+                <div class="stat-number"><?php echo number_format($coats_total_all_time); ?></div>
                 <div class="stat-label">Winter Coats Issued (All Time)</div>
+                <div class="stat-detail"><?php echo number_format($coats_adults_all_time); ?> adults, <?php echo number_format($coats_children_all_time); ?> children</div>
             </div>
             <div class="stat-box info">
-                <div class="stat-number"><?php echo number_format($coats_issued_this_season); ?></div>
+                <div class="stat-number"><?php echo number_format($coats_total_this_season); ?></div>
                 <div class="stat-label">Coats This Season</div>
+                <div class="stat-detail"><?php echo number_format($coats_adults_this_season); ?> adults, <?php echo number_format($coats_children_this_season); ?> children</div>
             </div>
         </div>
     </div>

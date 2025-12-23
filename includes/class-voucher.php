@@ -5,13 +5,13 @@
 class SVDP_Voucher {
     
     /**
-     * Get all vouchers with conference information
+     * Get all vouchers with coat information
      */
     public static function get_vouchers($request) {
         global $wpdb;
         $vouchers_table = $wpdb->prefix . 'svdp_vouchers';
         $conferences_table = $wpdb->prefix . 'svdp_conferences';
-        
+    
         $results = $wpdb->get_results("
             SELECT 
                 v.*,
@@ -21,11 +21,11 @@ class SVDP_Voucher {
             WHERE v.status != 'Denied'
             ORDER BY v.voucher_created_date DESC
         ");
-        
+    
         if (!$results) {
             return [];
         }
-        
+    
         $vouchers = [];
         foreach ($results as $voucher) {
             // Calculate expiration (30 days from creation)
@@ -33,25 +33,31 @@ class SVDP_Voucher {
             $expiration = clone $created;
             $expiration->modify('+30 days');
             $today = new DateTime();
-            
+        
             $is_expired = ($today > $expiration && $voucher->status === 'Active');
-            
+        
             // Calculate coat eligibility (resets August 1st)
             $coat_eligible = true;
             $coat_eligible_after = null;
-            
+
             if (!empty($voucher->coat_issued_date)) {
-                $coat_eligible = !self::can_issue_coat($voucher->coat_issued_date);
+                // can_issue_coat returns true if we CAN issue (past Aug 1 reset)
+                $coat_eligible = self::can_issue_coat($voucher->coat_issued_date);
                 if (!$coat_eligible) {
+                    // Calculate next August 1st
                     $next_august = new DateTime();
-                    if ((int)$next_august->format('m') >= 8) {
+                    $current_month = (int)$next_august->format('m');
+
+                    // If we're before August, next eligible is this year's Aug 1
+                    // If we're in/after August, next eligible is next year's Aug 1
+                    if ($current_month >= 8) {
                         $next_august->modify('+1 year');
                     }
                     $next_august->setDate((int)$next_august->format('Y'), 8, 1);
                     $coat_eligible_after = $next_august->format('Y-m-d');
                 }
             }
-            
+        
             $vouchers[] = [
                 'id' => $voucher->id,
                 'first_name' => $voucher->first_name,
@@ -70,11 +76,13 @@ class SVDP_Voucher {
                 'override_note' => $voucher->override_note,
                 'coat_status' => $voucher->coat_status,
                 'coat_issued_date' => $voucher->coat_issued_date,
+                'coat_adults_issued' => $voucher->coat_adults_issued ?? null,
+                'coat_children_issued' => $voucher->coat_children_issued ?? null,
                 'coat_eligible' => $coat_eligible,
                 'coat_eligible_after' => $coat_eligible_after,
             ];
         }
-        
+    
         return $vouchers;
     }
     
@@ -301,12 +309,7 @@ class SVDP_Voucher {
             $next_august = new DateTime($current_year . '-08-01');
         }
         $coat_eligible_after = $next_august->format('F j, Y');
-        
-        // Trigger Monday.com sync if enabled
-        if (SVDP_Monday_Sync::is_enabled()) {
-            SVDP_Monday_Sync::sync_voucher_to_monday($voucher_id);
-        }
-        
+
         // Send email notification to conference
         self::send_conference_notification($voucher_id);
         
@@ -410,41 +413,78 @@ class SVDP_Voucher {
         if ($result === false) {
             return new WP_Error('update_failed', 'Failed to update status', ['status' => 500]);
         }
-        
-        // Sync to Monday.com if enabled
-        if (get_option('svdp_vouchers_monday_sync_enabled')) {
-            SVDP_Monday_Sync::sync_voucher_to_monday($id);
-        }
-        
+
         return rest_ensure_response(['success' => true]);
     }
     
     /**
-     * Update coat status
+     * Update coat status with household counts
      */
     public static function update_coat_status($request) {
         global $wpdb;
         $table = $wpdb->prefix . 'svdp_vouchers';
-        
+
+        // ID comes from URL path, adults/children from JSON body
         $id = intval($request['id']);
-        
+        $params = $request->get_json_params();
+        $adults = intval($params['adults']);
+        $children = intval($params['children']);
+    
+        // Validate that at least one coat is being issued
+        if ($adults < 0 || $children < 0) {
+            return new WP_Error('invalid_input', 'Invalid coat counts', ['status' => 400]);
+        }
+    
+        if ($adults === 0 && $children === 0) {
+            return new WP_Error('invalid_input', 'Must issue at least one coat', ['status' => 400]);
+        }
+
+        // Check coat eligibility before allowing issuance
+        $voucher = $wpdb->get_row($wpdb->prepare(
+            "SELECT coat_issued_date FROM $table WHERE id = %d",
+            $id
+        ));
+
+        if ($voucher && !empty($voucher->coat_issued_date)) {
+            // Check if coat can be issued based on August 1st reset
+            if (!self::can_issue_coat($voucher->coat_issued_date)) {
+                // Calculate next eligible date
+                $today = new DateTime();
+                $current_month = (int)$today->format('m');
+                $next_august = new DateTime();
+
+                if ($current_month >= 8) {
+                    $next_august->modify('+1 year');
+                }
+                $next_august->setDate((int)$next_august->format('Y'), 8, 1);
+
+                return new WP_Error(
+                    'coat_not_eligible',
+                    'This household already received a coat this season. Next eligible date: ' . $next_august->format('F j, Y'),
+                    ['status' => 403]
+                );
+            }
+        }
+
         $update_data = [
             'coat_status' => 'Issued',
             'coat_issued_date' => date('Y-m-d'),
+            'coat_adults_issued' => $adults,
+            'coat_children_issued' => $children,
         ];
-        
+    
         $result = $wpdb->update($table, $update_data, ['id' => $id]);
-        
+    
         if ($result === false) {
             return new WP_Error('update_failed', 'Failed to update coat status', ['status' => 500]);
         }
-        
-        // Sync to Monday.com if enabled
-        if (get_option('svdp_vouchers_monday_sync_enabled')) {
-            SVDP_Monday_Sync::sync_voucher_to_monday($id);
-        }
-        
-        return rest_ensure_response(['success' => true]);
+
+        return rest_ensure_response([
+            'success' => true,
+            'adults' => $adults,
+            'children' => $children,
+            'total' => $adults + $children
+        ]);
     }
 
     /**

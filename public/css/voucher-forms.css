@@ -181,96 +181,374 @@
    ================================ */
 
 .svdp-cashier-container {
-    max-width: 100%;
-    padding: 10px;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* Header Section */
+.svdp-cashier-header {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.svdp-cashier-header h1 {
+    font-size: 24px;
+    color: #333;
+    margin: 0 0 15px 0;
+}
+
+/* Search and Filter Bar */
+.svdp-search-filter-bar {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.svdp-search-box {
+    flex: 1;
+    min-width: 250px;
+}
+
+.svdp-search-box input {
+    width: 100%;
+    padding: 12px 15px;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    font-size: 16px;
+    box-sizing: border-box;
+}
+
+.svdp-search-box input:focus {
+    outline: none;
+    border-color: #006BA8;
+}
+
+.svdp-filter-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.svdp-filter-btn {
+    padding: 10px 20px;
+    border: 2px solid #ddd;
+    background: white;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.svdp-filter-btn:hover {
+    border-color: #006BA8;
+    background: #f0f8ff;
+}
+
+.svdp-filter-btn.active {
+    background: #006BA8;
+    color: white;
+    border-color: #006BA8;
+}
+
+.svdp-sort-dropdown {
+    padding: 10px 15px;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+/* Stats Bar */
+.svdp-stats-bar {
+    background: white;
+    padding: 15px 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    display: flex;
+    gap: 30px;
+    flex-wrap: wrap;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.svdp-stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.svdp-stat-label {
+    color: #666;
+    font-size: 14px;
+}
+
+.svdp-stat-value {
+    font-size: 24px;
+    font-weight: bold;
+    color: #006BA8;
+}
+
+/* Main Content Layout */
+.svdp-main-content {
+    display: grid;
+    grid-template-columns: 1fr 350px;
+    gap: 20px;
+}
+
+/* Vouchers Section */
+.svdp-vouchers-section {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    order: 1;
+}
+
+.svdp-vouchers-container {
     display: flex;
     flex-direction: column;
     gap: 15px;
 }
 
-/* Table Wrapper */
-.svdp-table-wrapper {
-    width: 100%;
-    background: #fff;
-    border-radius: 4px;
-    padding: 10px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+/* Voucher Cards */
+.svdp-voucher-card {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.2s;
+    border-left: 4px solid #006BA8;
 }
 
-.svdp-table-wrapper h2 {
-    margin: 0 0 10px 0;
+.svdp-voucher-card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    transform: translateY(-2px);
+}
+
+.svdp-voucher-card.svdp-card-expired {
+    border-left-color: #999;
+    opacity: 0.7;
+}
+
+.svdp-voucher-card.svdp-card-redeemed {
+    border-left-color: #28a745;
+}
+
+.svdp-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 15px;
+}
+
+.svdp-card-name {
+    font-size: 20px;
+    font-weight: 600;
+    color: #333;
+}
+
+/* Status Badges */
+.svdp-status-badge {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.svdp-badge-active {
+    background: #d4edda;
+    color: #155724;
+}
+
+.svdp-badge-redeemed {
+    background: #cce5ff;
+    color: #004085;
+}
+
+.svdp-badge-expired {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* Card Details */
+.svdp-card-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-bottom: 15px;
+}
+
+.svdp-detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.svdp-detail-label {
+    font-size: 12px;
+    color: #666;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.svdp-detail-value {
     font-size: 16px;
-    color: #006BA8;
+    color: #333;
+    font-weight: 500;
 }
 
-.svdp-table-scroll {
-    overflow-x: auto;
-    max-width: 100%;
+/* Card Actions */
+.svdp-card-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
 }
 
-/* Table Styles */
-#svdpVoucherTable {
-    font-size: 11px !important;
+.svdp-btn-success {
+    background: #28a745;
+    color: white;
 }
 
-#svdpVoucherTable thead th {
-    padding: 6px 4px !important;
-    background: #006BA8 !important;
-    color: white !important;
-    font-weight: 600;
-    white-space: nowrap;
+.svdp-btn-success:hover {
+    background: #218838;
 }
 
-#svdpVoucherTable tbody td {
-    padding: 5px 4px !important;
-    vertical-align: middle;
+.svdp-btn-coat {
+    background: #ff9800;
+    color: white;
 }
 
-.svdp-status-dropdown,
-.svdp-coat-dropdown {
-    padding: 3px;
-    border: 1px solid #ddd;
-    border-radius: 3px;
-    font-size: 11px;
-    width: 90px;
+.svdp-btn-coat:hover {
+    background: #e68900;
 }
 
-.svdp-status-expired {
-    color: #dc3545;
-    font-weight: 600;
-}
-
-.svdp-status-redeemed {
-    color: #28a745;
-}
-
-.svdp-status-active {
-    color: #007bff;
-}
-
-.svdp-coat-issued {
-    color: #28a745;
-    font-weight: 600;
-    font-size: 10px;
-}
-
-.svdp-coat-not-eligible {
-    color: #6c757d;
-    font-size: 10px;
-}
-
-/* Emergency Form */
-.svdp-emergency-form-wrapper {
-    background: #f5f5f5;
+/* Load More Button */
+.svdp-load-more {
+    width: 100%;
+    margin-top: 10px;
     padding: 15px;
-    border-radius: 4px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    background: #006BA8;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.svdp-load-more:hover {
+    background: #005080;
+}
+
+/* Loading State */
+.svdp-loading {
+    text-align: center;
+    padding: 40px;
+}
+
+.svdp-spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #006BA8;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 20px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Empty State */
+.svdp-empty-state {
+    background: white;
+    border-radius: 8px;
+    padding: 60px 20px;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.svdp-empty-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+}
+
+.svdp-empty-text {
+    font-size: 18px;
+    color: #666;
+}
+
+/* Error Message */
+.svdp-error-message {
+    background: white;
+    border-radius: 8px;
+    padding: 40px 20px;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.svdp-error-message h2 {
+    margin: 0 0 15px 0;
+    color: #721c24;
+}
+
+.svdp-error-message p {
+    margin: 10px 0;
+    color: #666;
+}
+
+/* Coat Info Badge */
+.svdp-coat-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: #fff3cd;
+    border-radius: 6px;
+    font-size: 13px;
+    margin-bottom: 15px;
+}
+
+.svdp-coat-info.eligible {
+    background: #d4edda;
+    color: #155724;
+}
+
+.svdp-coat-info.not-eligible {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.svdp-coat-info.issued {
+    background: #cce5ff;
+    color: #004085;
+}
+
+/* Emergency Form Sidebar */
+.svdp-emergency-form-wrapper {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    order: 2;
 }
 
 .svdp-emergency-form-wrapper h3 {
-    margin: 0 0 10px 0;
-    font-size: 16px;
-    color: #006BA8;
+    margin: 0 0 15px 0;
+    font-size: 20px;
+    color: #333;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #006BA8;
 }
 
 /* Modal */
@@ -289,21 +567,26 @@
 
 .svdp-modal-content {
     background: white;
-    padding: 20px;
-    border-radius: 4px;
-    max-width: 400px;
+    padding: 30px;
+    border-radius: 8px;
+    max-width: 500px;
+    width: 90%;
     margin: 20px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    max-height: 90vh;
+    overflow-y: auto;
 }
 
 .svdp-modal-content h3 {
     margin-top: 0;
-    font-size: 16px;
+    margin-bottom: 20px;
+    font-size: 18px;
+    color: #333;
 }
 
 .svdp-modal-content p {
-    font-size: 13px;
-    line-height: 1.4;
+    font-size: 14px;
+    line-height: 1.5;
 }
 
 .svdp-cashier-name-section {
@@ -318,81 +601,130 @@
 
 .svdp-cashier-name-section input {
     width: 100%;
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 3px;
+    padding: 10px;
+    border: 2px solid #ddd;
+    border-radius: 6px;
     box-sizing: border-box;
+    font-size: 14px;
+}
+
+.svdp-cashier-name-section input:focus {
+    outline: none;
+    border-color: #006BA8;
 }
 
 .svdp-cashier-name-section small {
     display: block;
     margin-top: 5px;
     color: #666;
-    font-size: 11px;
+    font-size: 12px;
 }
 
 .svdp-modal-buttons {
     display: flex;
     gap: 10px;
     justify-content: flex-end;
-    margin-top: 15px;
+    margin-top: 20px;
 }
 
 .svdp-modal-buttons .svdp-btn {
     width: auto;
-    padding: 8px 15px;
-    font-size: 13px;
+    padding: 10px 20px;
+    font-size: 14px;
 }
 
-/* Responsive */
+/* Responsive Styles */
 @media (max-width: 600px) {
     .svdp-voucher-form {
         padding: 15px;
     }
-    
+
     .svdp-form-row {
         flex-direction: column;
         gap: 0;
     }
+
+    .svdp-cashier-container {
+        padding: 10px;
+    }
+
+    .svdp-cashier-header h1 {
+        font-size: 20px;
+    }
+
+    .svdp-search-filter-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .svdp-search-box {
+        min-width: 100%;
+    }
+
+    .svdp-filter-buttons {
+        flex-wrap: wrap;
+    }
+
+    .svdp-filter-btn {
+        flex: 1;
+        min-width: calc(50% - 5px);
+    }
+
+    .svdp-stats-bar {
+        gap: 15px;
+    }
+
+    .svdp-stat-value {
+        font-size: 20px;
+    }
+
+    .svdp-card-name {
+        font-size: 18px;
+    }
 }
 
-@media (max-width: 850px) {
+@media (max-width: 768px) {
     .svdp-cashier-container {
-        padding: 5px;
+        padding: 10px;
     }
     
-    #svdpVoucherTable {
-        font-size: 10px !important;
+    .svdp-card-details {
+        grid-template-columns: 1fr;
+    }
+    
+    .svdp-card-actions {
+        flex-direction: column;
+    }
+    
+    .svdp-card-actions .svdp-btn {
+        width: 100%;
+    }
+    
+    .svdp-voucher-card {
+        padding: 15px;
+    }
+}
+
+@media (max-width: 1200px) {
+    .svdp-main-content {
+        grid-template-columns: 1fr;
+    }
+
+    .svdp-vouchers-section {
+        order: 1; /* Vouchers stay at top */
+        }
+
+    .svdp-emergency-form-wrapper {
+        order: 2; /* Form moves to bottom */
+        margin-top: 20px;
     }
 }
 
 @media (min-width: 1200px) {
-    .svdp-cashier-container {
-        flex-direction: row;
-        gap: 20px;
-    }
-    
-    .svdp-table-wrapper {
-        flex: 2;
-    }
-    
     .svdp-emergency-form-wrapper {
-        flex: 1;
         position: sticky;
         top: 20px;
-        height: fit-content;
+        max-height: calc(100vh - 40px);
+        overflow-y: auto;
     }
-}
-
-/* DataTables Overrides */
-.dataTables_wrapper .dataTables_length,
-.dataTables_wrapper .dataTables_filter,
-.dataTables_wrapper .dataTables_info,
-.dataTables_wrapper .dataTables_paginate {
-    font-size: 11px;
-}
-
-.dataTables_wrapper .dataTables_paginate .paginate_button {
-    padding: 2px 6px;
-    font-size: 11px;
 }

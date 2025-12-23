@@ -8,9 +8,6 @@
         <a href="?page=svdp-vouchers&tab=conferences" class="nav-tab <?php echo $active_tab === 'conferences' ? 'nav-tab-active' : ''; ?>">
             Conferences
         </a>
-        <a href="?page=svdp-vouchers&tab=monday" class="nav-tab <?php echo $active_tab === 'monday' ? 'nav-tab-active' : ''; ?>">
-            Monday.com Sync
-        </a>
         <a href="?page=svdp-vouchers&tab=settings" class="nav-tab <?php echo $active_tab === 'settings' ? 'nav-tab-active' : ''; ?>">
             Settings
         </a>
@@ -24,9 +21,6 @@
                 break;
             case 'conferences':
                 include 'tab-conferences.php';
-                break;
-            case 'monday':
-                include 'tab-monday.php';
                 break;
             case 'settings':
                 include 'tab-settings.php';
