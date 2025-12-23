@@ -1,62 +1,117 @@
 <div class="svdp-voucher-form">
 
-    <h2>Request a Virtual Clothing Voucher</h2>
+    <h2>Voucher Request Form</h2>
+    <p class="svdp-form-intro">Use this form to request a voucher on behalf of a neighbor in need.</p>
 
+    <?php
+    // Get global boilerplate text from settings
+    $store_hours = SVDP_Settings::get_setting('store_hours', '');
+    $redemption_instructions = SVDP_Settings::get_setting('redemption_instructions', '');
+
+    // Get organization-specific custom text if set
+    $custom_form_text = !empty($conference) ? ($conference->custom_form_text ?? '') : '';
+    $custom_rules_text = !empty($conference) ? ($conference->custom_rules_text ?? '') : '';
+    ?>
+
+    <!-- Global Boilerplate -->
+    <?php if (!empty($store_hours) || !empty($redemption_instructions)): ?>
     <div class="svdp-instructions">
-        <h3>What are Virtual Clothing Vouchers?</h3>
-        <p>Virtual Clothing Vouchers replace paper vouchers and allow your Neighbors to access the clothing they need in a dignified manner that maintains their self-respect and gives them the power of personal choice.</p>
-
-        <div class="svdp-important-box">
-            <p><strong>⏱️ Processing Time:</strong> Vouchers are processed immediately and are ready to use right away.</p>
-
-            <p><strong>🏪 Thrift Store Voucher Hours:</strong> 9:30 AM – 4:00 PM</p>
-
-            <p><strong>Important:</strong> Please remind your Neighbor to stop by the Customer Service Desk at the Thrift Store <em>before</em> shopping to receive instructions. This ensures their voucher experience goes smoothly!</p>
-        </div>
+        <h3>Store Information</h3>
+        <?php if (!empty($store_hours)): ?>
+            <p><strong>🏪 Hours:</strong> <?php echo esc_html($store_hours); ?></p>
+        <?php endif; ?>
+        <?php if (!empty($redemption_instructions)): ?>
+            <p><strong>ℹ️ Instructions:</strong> <?php echo esc_html($redemption_instructions); ?></p>
+        <?php endif; ?>
     </div>
+    <?php endif; ?>
+
+    <!-- Organization-Specific Custom Text -->
+    <?php if (!empty($custom_form_text)): ?>
+    <div class="svdp-custom-text">
+        <h3><?php echo !empty($conference) ? esc_html($conference->name) : 'Organization'; ?> Information</h3>
+        <p><?php echo nl2br(esc_html($custom_form_text)); ?></p>
+    </div>
+    <?php endif; ?>
+
+    <!-- Organization-Specific Rules -->
+    <?php if (!empty($custom_rules_text)): ?>
+    <div class="svdp-custom-rules">
+        <h3>Eligibility Requirements</h3>
+        <div class="rules-content"><?php echo nl2br(esc_html($custom_rules_text)); ?></div>
+    </div>
+    <?php endif; ?>
 
     <form id="svdpVoucherForm" class="svdp-form">
         <h3>Neighbor Information</h3>
 
         <div class="svdp-form-row">
             <div class="svdp-form-group">
-                <label>Neighbor's First Name *</label>
+                <label>First Name *</label>
                 <input type="text" name="firstName" required>
             </div>
 
             <div class="svdp-form-group">
-                <label>Neighbor's Last Name *</label>
+                <label>Last Name *</label>
                 <input type="text" name="lastName" required>
             </div>
         </div>
 
         <div class="svdp-form-group">
-            <label>Neighbor's Date of Birth *</label>
+            <label>Date of Birth *</label>
             <input type="text" name="dob" placeholder="MM/DD/YYYY" pattern="\d{2}/\d{2}/\d{4}" required>
-            <small class="svdp-help-text">We use birthdates to make sure each household receives vouchers at appropriate intervals. This helps us serve more families in our community.</small>
+            <small class="svdp-help-text">Used to track voucher eligibility and ensure appropriate intervals between requests.</small>
         </div>
 
         <div class="svdp-form-row">
             <div class="svdp-form-group">
-                <label>How many adults (18 and over) are in your Neighbor's household? *</label>
+                <label>Number of adults (18 and over) in household *</label>
                 <input type="number" name="adults" min="0" value="1" required>
-                <small class="svdp-help-text">Each household member receives $20 in conference vouchers. Please count all adults.</small>
+                <small class="svdp-help-text">Item allocation is based on household size. Count all adults in the home.</small>
             </div>
 
             <div class="svdp-form-group">
-                <label>How many children (under 18) are in your Neighbor's household? *</label>
+                <label>Number of children (under 18) in household *</label>
                 <input type="number" name="children" min="0" value="0">
-                <small class="svdp-help-text">Each household member receives $20 in conference vouchers. Please count all children.</small>
+                <small class="svdp-help-text">Item allocation is based on household size. Count all children in the home.</small>
             </div>
         </div>
 
-        <h3>Your Information</h3>
+        <?php
+        // Get available voucher types
+        if (!empty($conference)) {
+            $allowed_types = !empty($conference->allowed_voucher_types)
+                ? json_decode($conference->allowed_voucher_types, true)
+                : ['clothing'];
+        } else {
+            // Default available types from settings
+            $available_types = explode(',', SVDP_Settings::get_setting('available_voucher_types', 'clothing,furniture,household'));
+            $allowed_types = array_map('trim', $available_types);
+        }
+        ?>
+
+        <?php if (count($allowed_types) > 1): ?>
+        <div class="svdp-form-group">
+            <label>Voucher Type *</label>
+            <select name="voucherType" required>
+                <option value="">Select voucher type...</option>
+                <?php foreach ($allowed_types as $type): ?>
+                    <option value="<?php echo esc_attr($type); ?>"><?php echo esc_html(ucfirst($type)); ?></option>
+                <?php endforeach; ?>
+            </select>
+            <small class="svdp-help-text">Select the type of voucher needed (Clothing, Furniture, Household Items).</small>
+        </div>
+        <?php else: ?>
+        <input type="hidden" name="voucherType" value="<?php echo esc_attr($allowed_types[0]); ?>">
+        <?php endif; ?>
+
+        <h3>Requestor Information</h3>
 
         <?php if (empty($conference)): ?>
         <div class="svdp-form-group">
-            <label>What Conference are you with? *</label>
+            <label>Conference or Partner Organization *</label>
             <select name="conference" required>
-                <option value="">Select your Conference...</option>
+                <option value="">Select your organization...</option>
                 <?php foreach ($conferences as $conf): ?>
                     <option value="<?php echo esc_attr($conf->slug); ?>"><?php echo esc_html($conf->name); ?></option>
                 <?php endforeach; ?>
@@ -64,19 +119,19 @@
         </div>
         <?php else: ?>
         <input type="hidden" name="conference" value="<?php echo esc_attr($conference->slug); ?>">
-        <p><strong>Conference:</strong> <?php echo esc_html($conference->name); ?></p>
+        <p><strong>Organization:</strong> <?php echo esc_html($conference->name); ?></p>
         <?php endif; ?>
 
         <div class="svdp-form-group">
-            <label>What is your name? *</label>
+            <label>Your Name *</label>
             <input type="text" name="vincentianName" required>
-            <small class="svdp-help-text">Your name as a Vincentian</small>
+            <small class="svdp-help-text">Your name as the staff member or volunteer requesting this voucher</small>
         </div>
 
         <div class="svdp-form-group">
-            <label>What is your email address? *</label>
+            <label>Your Email Address *</label>
             <input type="email" name="vincentianEmail" required>
-            <small class="svdp-help-text">Sometimes there might be questions about a voucher. Having your email lets us reach out quickly if anything comes up. We want to keep you in the loop and help you support your Neighbor!</small>
+            <small class="svdp-help-text">For voucher confirmation and follow-up if needed</small>
         </div>
 
         <button type="submit" class="svdp-btn svdp-btn-primary">Submit Voucher Request</button>

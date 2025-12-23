@@ -17,6 +17,7 @@ class SVDP_Admin {
         add_action('wp_ajax_svdp_update_voucher_types', [$this, 'ajax_update_voucher_types']);
         add_action('wp_ajax_svdp_get_custom_text', [$this, 'ajax_get_custom_text']);
         add_action('wp_ajax_svdp_save_custom_text', [$this, 'ajax_save_custom_text']);
+        add_action('wp_ajax_svdp_apply_analytics_filters', [$this, 'ajax_apply_analytics_filters']);
 
         // Export handler
         add_action('admin_post_svdp_export_vouchers', [$this, 'export_vouchers']);
@@ -247,6 +248,109 @@ class SVDP_Admin {
     }
 
     /**
+     * AJAX: Apply analytics filters and return filtered data
+     */
+    public function ajax_apply_analytics_filters() {
+        check_ajax_referer('svdp_analytics_filters', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Permission denied');
+        }
+
+        $filters = $_POST['filters'];
+
+        global $wpdb;
+        $vouchers_table = $wpdb->prefix . 'svdp_vouchers';
+        $conferences_table = $wpdb->prefix . 'svdp_conferences';
+
+        // Build WHERE clauses based on filters
+        $where_clauses = ["v.status != 'Denied'"];
+
+        // Date range filter
+        if ($filters['date_range'] !== 'all') {
+            if ($filters['date_range'] === 'custom') {
+                $start_date = sanitize_text_field($filters['start_date']);
+                $end_date = sanitize_text_field($filters['end_date']);
+                $where_clauses[] = $wpdb->prepare("v.voucher_created_date BETWEEN %s AND %s", $start_date, $end_date);
+            } else {
+                $days = intval($filters['date_range']);
+                if ($filters['date_range'] === 'ytd') {
+                    $year_start = date('Y-01-01');
+                    $where_clauses[] = $wpdb->prepare("v.voucher_created_date >= %s", $year_start);
+                } else {
+                    $cutoff_date = date('Y-m-d', strtotime("-{$days} days"));
+                    $where_clauses[] = $wpdb->prepare("v.voucher_created_date >= %s", $cutoff_date);
+                }
+            }
+        }
+
+        // Organization type filter
+        if ($filters['org_type'] !== 'all') {
+            $org_type = sanitize_text_field($filters['org_type']);
+            $where_clauses[] = $wpdb->prepare("c.organization_type = %s", $org_type);
+        }
+
+        // Specific organization filter
+        if ($filters['org_id'] !== 'all') {
+            $org_id = intval($filters['org_id']);
+            $where_clauses[] = $wpdb->prepare("v.conference_id = %d", $org_id);
+        }
+
+        // Voucher type filter
+        if ($filters['voucher_type'] !== 'all') {
+            $voucher_type = sanitize_text_field($filters['voucher_type']);
+            $where_clauses[] = $wpdb->prepare("v.voucher_type = %s", $voucher_type);
+        }
+
+        $where_sql = implode(' AND ', $where_clauses);
+
+        // Get filtered stats
+        $stats = [
+            'total_vouchers' => 0,
+            'redeemed_vouchers' => 0,
+            'items_redeemed' => 0,
+            'redemption_value' => 0,
+            'organizations' => []
+        ];
+
+        // Overall totals
+        $totals = $wpdb->get_row("
+            SELECT COUNT(*) as total_vouchers,
+                   SUM(CASE WHEN v.status = 'Redeemed' THEN 1 ELSE 0 END) as redeemed_vouchers,
+                   SUM(CASE WHEN v.status = 'Redeemed' THEN COALESCE(v.items_adult_redeemed, 0) + COALESCE(v.items_children_redeemed, 0) ELSE 0 END) as items_redeemed,
+                   SUM(CASE WHEN v.status = 'Redeemed' THEN COALESCE(v.redemption_total_value, 0) ELSE 0 END) as redemption_value
+            FROM {$vouchers_table} v
+            LEFT JOIN {$conferences_table} c ON v.conference_id = c.id
+            WHERE {$where_sql}
+        ");
+
+        $stats['total_vouchers'] = intval($totals->total_vouchers);
+        $stats['redeemed_vouchers'] = intval($totals->redeemed_vouchers);
+        $stats['items_redeemed'] = intval($totals->items_redeemed);
+        $stats['redemption_value'] = floatval($totals->redemption_value);
+
+        // Per-organization stats
+        $org_stats = $wpdb->get_results("
+            SELECT c.name,
+                   c.organization_type,
+                   COUNT(v.id) as vouchers_issued,
+                   SUM(CASE WHEN v.status = 'Redeemed' THEN 1 ELSE 0 END) as vouchers_redeemed,
+                   SUM(CASE WHEN v.status = 'Redeemed' THEN COALESCE(v.items_adult_redeemed, 0) + COALESCE(v.items_children_redeemed, 0) ELSE 0 END) as items_redeemed,
+                   SUM(CASE WHEN v.status = 'Redeemed' THEN COALESCE(v.redemption_total_value, 0) ELSE 0 END) as redemption_value
+            FROM {$conferences_table} c
+            LEFT JOIN {$vouchers_table} v ON c.id = v.conference_id AND {$where_sql}
+            WHERE c.active = 1
+            GROUP BY c.id, c.name, c.organization_type
+            HAVING vouchers_issued > 0
+            ORDER BY vouchers_issued DESC
+        ");
+
+        $stats['organizations'] = $org_stats;
+
+        wp_send_json_success($stats);
+    }
+
+    /**
      * Export vouchers to CSV
      */
     public function export_vouchers() {
@@ -260,32 +364,54 @@ class SVDP_Admin {
         $vouchers_table = $wpdb->prefix . 'svdp_vouchers';
         $conferences_table = $wpdb->prefix . 'svdp_conferences';
         
-        // Build date filter
-        $date_filter = '';
-        $date_range = sanitize_text_field($_POST['date_range']);
-        
-        if ($date_range === 'custom') {
-            $start_date = sanitize_text_field($_POST['start_date']);
-            $end_date = sanitize_text_field($_POST['end_date']);
-            $date_filter = $wpdb->prepare("AND v.voucher_created_date BETWEEN %s AND %s", $start_date, $end_date);
-        } elseif ($date_range !== 'all') {
-            if ($date_range === 'ytd') {
+        // Build filters from analytics filters (if set) or legacy date range
+        $where_clauses = ['1=1'];
+
+        // Check if analytics filters are set
+        $filter_date_range = isset($_POST['filter_date_range']) ? sanitize_text_field($_POST['filter_date_range']) : sanitize_text_field($_POST['date_range']);
+
+        // Date filter
+        if ($filter_date_range === 'custom') {
+            $start_date = isset($_POST['filter_start_date']) ? sanitize_text_field($_POST['filter_start_date']) : sanitize_text_field($_POST['start_date']);
+            $end_date = isset($_POST['filter_end_date']) ? sanitize_text_field($_POST['filter_end_date']) : sanitize_text_field($_POST['end_date']);
+            $where_clauses[] = $wpdb->prepare("v.voucher_created_date BETWEEN %s AND %s", $start_date, $end_date);
+        } elseif ($filter_date_range !== 'all') {
+            if ($filter_date_range === 'ytd') {
                 $start_date = date('Y-01-01');
             } else {
-                $start_date = date('Y-m-d', strtotime('-' . intval($date_range) . ' days'));
+                $start_date = date('Y-m-d', strtotime('-' . intval($filter_date_range) . ' days'));
             }
-            $date_filter = $wpdb->prepare("AND v.voucher_created_date >= %s", $start_date);
+            $where_clauses[] = $wpdb->prepare("v.voucher_created_date >= %s", $start_date);
         }
-        
-        // Build status filter
-        $status_filter = '';
+
+        // Organization type filter
+        if (isset($_POST['filter_org_type']) && $_POST['filter_org_type'] !== 'all') {
+            $org_type = sanitize_text_field($_POST['filter_org_type']);
+            $where_clauses[] = $wpdb->prepare("c.organization_type = %s", $org_type);
+        }
+
+        // Specific organization filter
+        if (isset($_POST['filter_org_id']) && $_POST['filter_org_id'] !== 'all') {
+            $org_id = intval($_POST['filter_org_id']);
+            $where_clauses[] = $wpdb->prepare("v.conference_id = %d", $org_id);
+        }
+
+        // Voucher type filter
+        if (isset($_POST['filter_voucher_type']) && $_POST['filter_voucher_type'] !== 'all') {
+            $voucher_type = sanitize_text_field($_POST['filter_voucher_type']);
+            $where_clauses[] = $wpdb->prepare("v.voucher_type = %s", $voucher_type);
+        }
+
+        // Status filter (include denied checkbox)
         if (!isset($_POST['include_denied'])) {
-            $status_filter = "AND v.status != 'Denied'";
+            $where_clauses[] = "v.status != 'Denied'";
         }
+
+        $where_sql = implode(' AND ', $where_clauses);
         
         // Get vouchers
         $vouchers = $wpdb->get_results("
-            SELECT 
+            SELECT
                 v.id,
                 v.first_name,
                 v.last_name,
@@ -295,19 +421,25 @@ class SVDP_Admin {
                 (v.adults + v.children) as household_size,
                 v.voucher_value,
                 c.name as conference,
+                c.organization_type,
+                COALESCE(v.voucher_type, 'clothing') as voucher_type,
                 v.vincentian_name,
                 v.vincentian_email,
                 v.created_by,
                 v.voucher_created_date,
                 v.status,
                 v.redeemed_date,
+                COALESCE(v.items_adult_redeemed, 0) as items_adult_redeemed,
+                COALESCE(v.items_children_redeemed, 0) as items_children_redeemed,
+                (COALESCE(v.items_adult_redeemed, 0) + COALESCE(v.items_children_redeemed, 0)) as total_items_redeemed,
+                COALESCE(v.redemption_total_value, 0) as redemption_total_value,
                 v.coat_status,
                 v.coat_issued_date,
                 v.override_note,
                 v.created_at
             FROM $vouchers_table v
             LEFT JOIN $conferences_table c ON v.conference_id = c.id
-            WHERE 1=1 $date_filter $status_filter
+            WHERE {$where_sql}
             ORDER BY v.voucher_created_date DESC
         ");
         
@@ -331,13 +463,19 @@ class SVDP_Admin {
             'Children',
             'Household Size',
             'Voucher Value',
-            'Conference',
+            'Conference/Partner',
+            'Organization Type',
+            'Voucher Type',
             'Vincentian Name',
             'Vincentian Email',
             'Created By',
             'Voucher Date',
             'Status',
             'Redeemed Date',
+            'Items Adult Redeemed',
+            'Items Children Redeemed',
+            'Total Items Redeemed',
+            'Redemption Value',
             'Coat Status',
             'Coat Issued Date',
             'Override Note',
@@ -356,12 +494,18 @@ class SVDP_Admin {
                 $voucher->household_size,
                 $voucher->voucher_value,
                 $voucher->conference,
+                ucfirst($voucher->organization_type),
+                ucfirst($voucher->voucher_type),
                 $voucher->vincentian_name,
                 $voucher->vincentian_email,
                 $voucher->created_by,
                 $voucher->voucher_created_date,
                 $voucher->status,
                 $voucher->redeemed_date,
+                $voucher->items_adult_redeemed,
+                $voucher->items_children_redeemed,
+                $voucher->total_items_redeemed,
+                number_format($voucher->redemption_total_value, 2),
                 $voucher->coat_status,
                 $voucher->coat_issued_date,
                 $voucher->override_note,

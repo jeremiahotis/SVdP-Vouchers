@@ -185,7 +185,7 @@ class SVDP_Vouchers_Plugin {
     public function configure_heartbeat($settings) {
         global $post;
         if (is_a($post, 'WP_Post') && has_shortcode($post->post_content, 'svdp_cashier_station')) {
-            $settings['interval'] = 60; // 60 seconds
+            $settings['interval'] = 15; // 15 seconds - faster than auto-refresh to always be fresh
         }
         return $settings;
     }
@@ -248,12 +248,17 @@ class SVDP_Vouchers_Plugin {
         wp_enqueue_script('svdp-vouchers-cashier', SVDP_VOUCHERS_PLUGIN_URL . 'public/js/cashier-station.js', ['jquery', 'heartbeat'], '1.1.0', true);
         
         // Localize scripts
+        $item_values = SVDP_Settings::get_item_values();
         $script_data = [
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'restUrl' => rest_url(),
             'nonce' => wp_create_nonce('wp_rest'),
+            'itemValues' => [
+                'adult' => floatval($item_values['adult']),
+                'child' => floatval($item_values['child'])
+            ]
         ];
-        
+
         wp_localize_script('svdp-vouchers-request', 'svdpVouchers', $script_data);
         wp_localize_script('svdp-vouchers-cashier', 'svdpVouchers', $script_data);
     }

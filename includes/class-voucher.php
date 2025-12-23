@@ -66,6 +66,8 @@ class SVDP_Voucher {
                 'adults' => $voucher->adults,
                 'children' => $voucher->children,
                 'voucher_value' => $voucher->voucher_value,
+                'voucher_type' => $voucher->voucher_type ?? 'clothing',
+                'voucher_items_count' => $voucher->voucher_items_count ?? 0,
                 'conference_name' => $voucher->conference_name,
                 'vincentian_name' => $voucher->vincentian_name,
                 'vincentian_email' => $voucher->vincentian_email,
@@ -117,23 +119,34 @@ class SVDP_Voucher {
      */
     public static function check_duplicate($request) {
         $params = $request->get_json_params();
-        
+
         $first_name = sanitize_text_field($params['firstName']);
         $last_name = sanitize_text_field($params['lastName']);
         $dob = sanitize_text_field($params['dob']);
         $created_by = sanitize_text_field($params['createdBy']);
-        
+        $voucher_type = isset($params['voucherType']) ? sanitize_text_field($params['voucherType']) : 'clothing';
+        $conference_slug = isset($params['conference']) ? sanitize_text_field($params['conference']) : '';
+
         global $wpdb;
         $vouchers_table = $wpdb->prefix . 'svdp_vouchers';
         $conferences_table = $wpdb->prefix . 'svdp_conferences';
-        
-        // Calculate 90 days ago
-        $ninety_days_ago = date('Y-m-d', strtotime('-90 days'));
-        
+
+        // Get requesting organization's eligibility window
+        $requesting_org = null;
+        if (!empty($conference_slug)) {
+            $requesting_org = SVDP_Conference::get_by_slug($conference_slug);
+        }
+        $eligibility_days = ($requesting_org && isset($requesting_org->eligibility_days))
+            ? intval($requesting_org->eligibility_days)
+            : 90; // Default to 90 days
+
+        // Calculate cutoff date based on organization's eligibility window
+        $eligibility_cutoff = date('Y-m-d', strtotime("-{$eligibility_days} days"));
+
         // Build base query based on created_by
         $conference_filter = ($created_by === 'Cashier') ? '' : 'AND c.is_emergency = 0';
-        
-        // STEP 1: Check for EXACT match
+
+        // STEP 1: Check for EXACT match (including voucher_type)
         $exact_query = $wpdb->prepare("
             SELECT v.*, c.name as conference_name
             FROM $vouchers_table v
@@ -141,19 +154,20 @@ class SVDP_Voucher {
             WHERE v.first_name = %s
             AND v.last_name = %s
             AND v.dob = %s
+            AND v.voucher_type = %s
             AND v.voucher_created_date >= %s
             $conference_filter
             ORDER BY v.voucher_created_date DESC
             LIMIT 1
-        ", $first_name, $last_name, $dob, $ninety_days_ago);
-        
+        ", $first_name, $last_name, $dob, $voucher_type, $eligibility_cutoff);
+
         $exact_match = $wpdb->get_row($exact_query);
-        
+
         if ($exact_match) {
-            // Calculate next eligible date
+            // Calculate next eligible date using organization's eligibility window
             $voucher_date = new DateTime($exact_match->voucher_created_date);
             $next_eligible = clone $voucher_date;
-            $next_eligible->modify('+90 days');
+            $next_eligible->modify("+{$eligibility_days} days");
             
             return [
                 'matchType' => 'exact',
@@ -168,7 +182,7 @@ class SVDP_Voucher {
             ];
         }
         
-        // STEP 2: Check for SIMILAR names (if no exact match)
+        // STEP 2: Check for SIMILAR names (if no exact match, same voucher_type)
         // Using SOUNDEX for phonetic matching and checking same DOB
         $similar_query = $wpdb->prepare("
             SELECT v.*, c.name as conference_name,
@@ -177,6 +191,7 @@ class SVDP_Voucher {
             FROM $vouchers_table v
             LEFT JOIN $conferences_table c ON v.conference_id = c.id
             WHERE v.dob = %s
+            AND v.voucher_type = %s
             AND v.voucher_created_date >= %s
             AND (
                 SOUNDEX(v.first_name) = SOUNDEX(%s)
@@ -187,26 +202,27 @@ class SVDP_Voucher {
             $conference_filter
             ORDER BY v.voucher_created_date DESC
             LIMIT 5
-        ", 
-            $first_name, 
-            $last_name, 
-            $dob, 
-            $ninety_days_ago,
+        ",
+            $first_name,
+            $last_name,
+            $dob,
+            $voucher_type,
+            $eligibility_cutoff,
             $first_name,
             $last_name,
             '%' . $wpdb->esc_like(substr($first_name, 0, 3)) . '%',
             '%' . $wpdb->esc_like(substr($last_name, 0, 3)) . '%'
         );
-        
+
         $similar_matches = $wpdb->get_results($similar_query);
-        
+
         if ($similar_matches && count($similar_matches) > 0) {
             // Format similar matches
             $matches = [];
             foreach ($similar_matches as $match) {
                 $voucher_date = new DateTime($match->voucher_created_date);
                 $next_eligible = clone $voucher_date;
-                $next_eligible->modify('+90 days');
+                $next_eligible->modify("+{$eligibility_days} days");
                 
                 $matches[] = [
                     'firstName' => $match->first_name,
@@ -234,7 +250,7 @@ class SVDP_Voucher {
      */
     public static function create_voucher($request) {
         $params = $request->get_json_params();
-        
+
         $first_name = sanitize_text_field($params['firstName']);
         $last_name = sanitize_text_field($params['lastName']);
         $dob = sanitize_text_field($params['dob']);
@@ -244,10 +260,11 @@ class SVDP_Voucher {
         $vincentian_name = isset($params['vincentianName']) ? sanitize_text_field($params['vincentianName']) : null;
         $vincentian_email = isset($params['vincentianEmail']) ? sanitize_email($params['vincentianEmail']) : null;
         $override_note = isset($params['overrideNote']) ? sanitize_text_field($params['overrideNote']) : null;
-        
+        $voucher_type = isset($params['voucherType']) ? sanitize_text_field($params['voucherType']) : 'clothing';
+
         global $wpdb;
         $table = $wpdb->prefix . 'svdp_vouchers';
-        
+
         // Get conference by slug or name
         $conference_obj = SVDP_Conference::get_by_slug($conference);
         if (!$conference_obj) {
@@ -256,11 +273,22 @@ class SVDP_Voucher {
                 $conference
             ));
         }
-        
+
         if (!$conference_obj) {
             return new WP_Error('invalid_conference', 'Conference not found');
         }
-        
+
+        // Validate voucher type against organization's allowed types
+        $allowed_types = !empty($conference_obj->allowed_voucher_types)
+            ? json_decode($conference_obj->allowed_voucher_types, true)
+            : ['clothing'];
+
+        if (!in_array($voucher_type, $allowed_types)) {
+            return new WP_Error('invalid_voucher_type',
+                'This organization does not offer ' . ucfirst($voucher_type) . ' vouchers. Allowed types: ' . implode(', ', array_map('ucfirst', $allowed_types))
+            );
+        }
+
         // Calculate voucher value based on conference type
         $household_size = $adults + $children;
         if ($conference_obj->is_emergency) {
@@ -270,7 +298,13 @@ class SVDP_Voucher {
             // Conference vouchers: $20 per person
             $voucher_value = $household_size * 20;
         }
-        
+
+        // Calculate items count based on conference type
+        $items_per_person = $conference_obj->is_emergency
+            ? ($conference_obj->emergency_items_per_person ?? 3)
+            : ($conference_obj->regular_items_per_person ?? 7);
+        $voucher_items_count = $household_size * $items_per_person;
+
         // Insert voucher
         $result = $wpdb->insert($table, [
             'first_name' => $first_name,
@@ -284,6 +318,8 @@ class SVDP_Voucher {
             'created_by' => $conference_obj->is_emergency ? 'Cashier' : 'Vincentian',
             'voucher_created_date' => current_time('Y-m-d'),
             'voucher_value' => $voucher_value,
+            'voucher_type' => $voucher_type,
+            'voucher_items_count' => $voucher_items_count,
             'override_note' => $override_note,
         ]);
         
@@ -398,23 +434,40 @@ class SVDP_Voucher {
     public static function update_status($request) {
         global $wpdb;
         $table = $wpdb->prefix . 'svdp_vouchers';
-        
+
         $id = intval($request['id']);
-        $status = sanitize_text_field($request['status']);
-        
+        $params = $request->get_json_params();
+        $status = sanitize_text_field($params['status']);
+
         $update_data = ['status' => $status];
-        
+
         if ($status === 'Redeemed') {
             $update_data['redeemed_date'] = date('Y-m-d');
+
+            // Get item counts if provided
+            $items_adult = isset($params['items_adult']) ? intval($params['items_adult']) : 0;
+            $items_children = isset($params['items_children']) ? intval($params['items_children']) : 0;
+
+            // Calculate redemption value
+            $item_values = SVDP_Settings::get_item_values();
+            $redemption_value = ($items_adult * $item_values['adult']) + ($items_children * $item_values['child']);
+
+            // Store redemption data
+            $update_data['items_adult_redeemed'] = $items_adult;
+            $update_data['items_children_redeemed'] = $items_children;
+            $update_data['redemption_total_value'] = $redemption_value;
         }
-        
+
         $result = $wpdb->update($table, $update_data, ['id' => $id]);
-        
+
         if ($result === false) {
             return new WP_Error('update_failed', 'Failed to update status', ['status' => 500]);
         }
 
-        return rest_ensure_response(['success' => true]);
+        return rest_ensure_response([
+            'success' => true,
+            'redemption_value' => isset($redemption_value) ? number_format($redemption_value, 2) : null
+        ]);
     }
     
     /**
@@ -592,7 +645,6 @@ class SVDP_Voucher {
                     <ul>
                         <li>Thrift Store hours: 9:30 AM – 4:00 PM</li>
                         <li>Stop by Customer Service before shopping</li>
-                        <li>Bring a photo ID if possible</li>
                         <li>Voucher expires in 30 days</li>
                     </ul>
                 </div>

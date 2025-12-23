@@ -155,7 +155,7 @@ class SVDP_Database {
             ['setting_key' => 'adult_item_value', 'setting_value' => '5.00', 'setting_type' => 'decimal'],
             ['setting_key' => 'child_item_value', 'setting_value' => '3.00', 'setting_type' => 'decimal'],
             ['setting_key' => 'store_hours', 'setting_value' => 'Monday-Friday 9am-5pm', 'setting_type' => 'text'],
-            ['setting_key' => 'redemption_instructions', 'setting_value' => 'Please bring your voucher and ID to the store.', 'setting_type' => 'textarea'],
+            ['setting_key' => 'redemption_instructions', 'setting_value' => 'Neighbors should visit the store and provide their first name, last name, and date of birth at the counter.', 'setting_type' => 'textarea'],
             ['setting_key' => 'available_voucher_types', 'setting_value' => 'clothing,furniture,household', 'setting_type' => 'text'],
         ];
 

@@ -129,6 +129,6 @@ class SVDP_Settings {
      * @return string Redemption instructions text
      */
     public static function get_redemption_instructions() {
-        return self::get_setting('redemption_instructions', 'Please bring your voucher and ID to the store.');
+        return self::get_setting('redemption_instructions', 'Neighbors should visit the store and provide their first name, last name, and date of birth at the counter.');
     }
 }

@@ -5,7 +5,7 @@
     $adult_item_value = SVDP_Settings::get_setting('adult_item_value', '5.00');
     $child_item_value = SVDP_Settings::get_setting('child_item_value', '3.00');
     $store_hours = SVDP_Settings::get_setting('store_hours', 'Monday-Friday 9am-5pm');
-    $redemption_instructions = SVDP_Settings::get_setting('redemption_instructions', 'Please bring your voucher and ID to the store.');
+    $redemption_instructions = SVDP_Settings::get_setting('redemption_instructions', 'Neighbors should visit the store and provide their first name, last name, and date of birth at the counter.');
     $available_voucher_types = SVDP_Settings::get_setting('available_voucher_types', 'clothing,furniture,household');
     ?>
 
