@@ -259,11 +259,38 @@ class SVDP_Voucher {
         $conference = sanitize_text_field($params['conference']);
         $vincentian_name = isset($params['vincentianName']) ? sanitize_text_field($params['vincentianName']) : null;
         $vincentian_email = isset($params['vincentianEmail']) ? sanitize_email($params['vincentianEmail']) : null;
-        $override_note = isset($params['overrideNote']) ? sanitize_text_field($params['overrideNote']) : null;
         $voucher_type = isset($params['voucherType']) ? sanitize_text_field($params['voucherType']) : 'clothing';
+
+        // Extract new override fields
+        $manager_id = isset($params['manager_id']) ? intval($params['manager_id']) : null;
+        $reason_id = isset($params['reason_id']) ? intval($params['reason_id']) : null;
 
         global $wpdb;
         $table = $wpdb->prefix . 'svdp_vouchers';
+
+        // Build override note if manager override
+        $override_note = null;
+        if ($manager_id && $reason_id) {
+            $manager_table = $wpdb->prefix . 'svdp_managers';
+            $reason_table = $wpdb->prefix . 'svdp_override_reasons';
+
+            $manager = $wpdb->get_row($wpdb->prepare(
+                "SELECT name FROM $manager_table WHERE id = %d", $manager_id
+            ));
+
+            $reason = $wpdb->get_row($wpdb->prepare(
+                "SELECT reason_text FROM $reason_table WHERE id = %d", $reason_id
+            ));
+
+            if ($manager && $reason) {
+                $override_note = sprintf(
+                    'Approved by %s - Reason: %s - %s',
+                    $manager->name,
+                    $reason->reason_text,
+                    current_time('Y-m-d H:i:s')
+                );
+            }
+        }
 
         // Get conference by slug or name
         $conference_obj = SVDP_Conference::get_by_slug($conference);
@@ -321,6 +348,8 @@ class SVDP_Voucher {
             'voucher_type' => $voucher_type,
             'voucher_items_count' => $voucher_items_count,
             'override_note' => $override_note,
+            'manager_id' => $manager_id,
+            'reason_id' => $reason_id,
         ]);
         
         if ($result === false) {

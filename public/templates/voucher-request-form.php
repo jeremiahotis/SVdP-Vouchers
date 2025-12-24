@@ -57,9 +57,14 @@
             </div>
         </div>
 
-        <div class="svdp-form-group">
+        <div class="svdp-form-group svdp-dob-field">
             <label>Date of Birth *</label>
-            <input type="text" name="dob" placeholder="MM/DD/YYYY" pattern="\d{2}/\d{2}/\d{4}" required>
+            <input type="date"
+                   name="dob"
+                   id="svdp-dob-input"
+                   class="svdp-date-input"
+                   placeholder="MM/DD/YYYY"
+                   required>
             <small class="svdp-help-text">Used to track voucher eligibility and ensure appropriate intervals between requests.</small>
         </div>
 

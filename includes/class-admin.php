@@ -19,6 +19,19 @@ class SVDP_Admin {
         add_action('wp_ajax_svdp_save_custom_text', [$this, 'ajax_save_custom_text']);
         add_action('wp_ajax_svdp_apply_analytics_filters', [$this, 'ajax_apply_analytics_filters']);
 
+        // Manager AJAX
+        add_action('wp_ajax_svdp_add_manager', [$this, 'ajax_add_manager']);
+        add_action('wp_ajax_svdp_get_managers', [$this, 'ajax_get_managers']);
+        add_action('wp_ajax_svdp_deactivate_manager', [$this, 'ajax_deactivate_manager']);
+        add_action('wp_ajax_svdp_regenerate_code', [$this, 'ajax_regenerate_code']);
+
+        // Reason AJAX
+        add_action('wp_ajax_svdp_add_reason', [$this, 'ajax_add_reason']);
+        add_action('wp_ajax_svdp_get_reasons', [$this, 'ajax_get_reasons']);
+        add_action('wp_ajax_svdp_update_reason', [$this, 'ajax_update_reason']);
+        add_action('wp_ajax_svdp_delete_reason', [$this, 'ajax_delete_reason']);
+        add_action('wp_ajax_svdp_reorder_reasons', [$this, 'ajax_reorder_reasons']);
+
         // Export handler
         add_action('admin_post_svdp_export_vouchers', [$this, 'export_vouchers']);
     }
@@ -52,10 +65,12 @@ class SVDP_Admin {
         if ($hook !== 'toplevel_page_svdp-vouchers') {
             return;
         }
-        
+
         wp_enqueue_style('svdp-vouchers-admin', SVDP_VOUCHERS_PLUGIN_URL . 'admin/css/admin.css', [], SVDP_VOUCHERS_VERSION);
         wp_enqueue_script('svdp-vouchers-admin', SVDP_VOUCHERS_PLUGIN_URL . 'admin/js/admin.js', ['jquery'], SVDP_VOUCHERS_VERSION, true);
-        
+        wp_enqueue_script('svdp-managers', SVDP_VOUCHERS_PLUGIN_URL . 'admin/js/managers.js', ['jquery'], SVDP_VOUCHERS_VERSION, true);
+        wp_enqueue_script('svdp-override-reasons', SVDP_VOUCHERS_PLUGIN_URL . 'admin/js/override-reasons.js', ['jquery', 'jquery-ui-sortable'], SVDP_VOUCHERS_VERSION, true);
+
         wp_localize_script('svdp-vouchers-admin', 'svdpAdmin', [
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('svdp_admin_nonce'),
@@ -436,9 +451,13 @@ class SVDP_Admin {
                 v.coat_status,
                 v.coat_issued_date,
                 v.override_note,
+                m.name as manager_name,
+                r.reason_text as override_reason,
                 v.created_at
             FROM $vouchers_table v
             LEFT JOIN $conferences_table c ON v.conference_id = c.id
+            LEFT JOIN {$wpdb->prefix}svdp_managers m ON v.manager_id = m.id
+            LEFT JOIN {$wpdb->prefix}svdp_override_reasons r ON v.reason_id = r.id
             WHERE {$where_sql}
             ORDER BY v.voucher_created_date DESC
         ");
@@ -479,6 +498,8 @@ class SVDP_Admin {
             'Coat Status',
             'Coat Issued Date',
             'Override Note',
+            'Override Manager',
+            'Override Reason',
             'Created At'
         ]);
         
@@ -509,11 +530,198 @@ class SVDP_Admin {
                 $voucher->coat_status,
                 $voucher->coat_issued_date,
                 $voucher->override_note,
+                $voucher->manager_name,
+                $voucher->override_reason,
                 $voucher->created_at
             ]);
         }
         
         fclose($output);
         exit;
+    }
+
+    /**
+     * AJAX: Add manager
+     */
+    public function ajax_add_manager() {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Permission denied');
+        }
+
+        $name = sanitize_text_field($_POST['name']);
+
+        if (empty($name)) {
+            wp_send_json_error('Manager name is required');
+        }
+
+        $result = SVDP_Manager::create($name);
+
+        if ($result['success']) {
+            wp_send_json_success($result);
+        } else {
+            wp_send_json_error('Failed to create manager');
+        }
+    }
+
+    /**
+     * AJAX: Get all managers
+     */
+    public function ajax_get_managers() {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Permission denied');
+        }
+
+        $managers = SVDP_Manager::get_all();
+        wp_send_json_success($managers);
+    }
+
+    /**
+     * AJAX: Deactivate manager
+     */
+    public function ajax_deactivate_manager() {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Permission denied');
+        }
+
+        $id = intval($_POST['id']);
+        $result = SVDP_Manager::deactivate($id);
+
+        if ($result !== false) {
+            wp_send_json_success('Manager deactivated');
+        } else {
+            wp_send_json_error('Failed to deactivate manager');
+        }
+    }
+
+    /**
+     * AJAX: Regenerate manager code
+     */
+    public function ajax_regenerate_code() {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Permission denied');
+        }
+
+        $id = intval($_POST['id']);
+        $result = SVDP_Manager::regenerate_code($id);
+
+        if ($result['success']) {
+            wp_send_json_success($result);
+        } else {
+            wp_send_json_error('Failed to regenerate code');
+        }
+    }
+
+    /**
+     * AJAX: Add override reason
+     */
+    public function ajax_add_reason() {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Permission denied');
+        }
+
+        $reason_text = sanitize_text_field($_POST['reason_text']);
+
+        if (empty($reason_text)) {
+            wp_send_json_error('Reason text is required');
+        }
+
+        $id = SVDP_Override_Reason::create($reason_text);
+
+        if ($id) {
+            wp_send_json_success('Reason added successfully');
+        } else {
+            wp_send_json_error('Failed to add reason');
+        }
+    }
+
+    /**
+     * AJAX: Get all reasons
+     */
+    public function ajax_get_reasons() {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Permission denied');
+        }
+
+        $reasons = SVDP_Override_Reason::get_all();
+        wp_send_json_success($reasons);
+    }
+
+    /**
+     * AJAX: Update reason
+     */
+    public function ajax_update_reason() {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Permission denied');
+        }
+
+        $id = intval($_POST['id']);
+        $reason_text = sanitize_text_field($_POST['reason_text']);
+
+        $result = SVDP_Override_Reason::update($id, $reason_text);
+
+        if ($result !== false) {
+            wp_send_json_success('Reason updated');
+        } else {
+            wp_send_json_error('Failed to update reason');
+        }
+    }
+
+    /**
+     * AJAX: Delete reason
+     */
+    public function ajax_delete_reason() {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Permission denied');
+        }
+
+        $id = intval($_POST['id']);
+        $result = SVDP_Override_Reason::delete($id);
+
+        if ($result !== false) {
+            wp_send_json_success('Reason deleted');
+        } else {
+            wp_send_json_error('Failed to delete reason');
+        }
+    }
+
+    /**
+     * AJAX: Reorder reasons
+     */
+    public function ajax_reorder_reasons() {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Permission denied');
+        }
+
+        $order = $_POST['order']; // Array of IDs in new order
+
+        if (!is_array($order)) {
+            wp_send_json_error('Invalid order data');
+        }
+
+        $result = SVDP_Override_Reason::reorder($order);
+
+        if ($result) {
+            wp_send_json_success('Order updated');
+        } else {
+            wp_send_json_error('Failed to update order');
+        }
     }
 }

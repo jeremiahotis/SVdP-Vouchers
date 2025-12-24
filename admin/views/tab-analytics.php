@@ -502,7 +502,115 @@ $all_organizations = $wpdb->get_results("
             </p>
         </form>
     </div>
-    
+
+    <!-- Override Analytics Section -->
+    <div class="svdp-analytics-section">
+        <h3>Emergency Override Statistics</h3>
+        <table class="wp-list-table widefat fixed striped">
+            <thead>
+                <tr>
+                    <th>Metric</th>
+                    <th>Count</th>
+                    <th>Percentage</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php
+                // Total vouchers with overrides
+                $override_count = $wpdb->get_var("
+                    SELECT COUNT(*)
+                    FROM {$wpdb->prefix}svdp_vouchers
+                    WHERE manager_id IS NOT NULL
+                ");
+
+                $total_vouchers = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}svdp_vouchers");
+                $override_pct = $total_vouchers > 0 ? round(($override_count / $total_vouchers) * 100, 1) : 0;
+                ?>
+                <tr>
+                    <td><strong>Total Overrides</strong></td>
+                    <td><?php echo number_format($override_count); ?></td>
+                    <td><?php echo $override_pct; ?>%</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h4>Overrides by Manager</h4>
+        <table class="wp-list-table widefat fixed striped">
+            <thead>
+                <tr>
+                    <th>Manager</th>
+                    <th>Overrides Approved</th>
+                    <th>% of Total Overrides</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php
+                $manager_stats = $wpdb->get_results("
+                    SELECT
+                        m.name as manager_name,
+                        COUNT(v.id) as override_count
+                    FROM {$wpdb->prefix}svdp_vouchers v
+                    INNER JOIN {$wpdb->prefix}svdp_managers m ON v.manager_id = m.id
+                    WHERE v.manager_id IS NOT NULL
+                    GROUP BY m.id, m.name
+                    ORDER BY override_count DESC
+                ");
+
+                if (empty($manager_stats)) {
+                    echo '<tr><td colspan="3">No override data yet.</td></tr>';
+                } else {
+                    foreach ($manager_stats as $stat) {
+                        $pct = $override_count > 0 ? round(($stat->override_count / $override_count) * 100, 1) : 0;
+                        echo '<tr>';
+                        echo '<td>' . esc_html($stat->manager_name) . '</td>';
+                        echo '<td>' . number_format($stat->override_count) . '</td>';
+                        echo '<td>' . $pct . '%</td>';
+                        echo '</tr>';
+                    }
+                }
+                ?>
+            </tbody>
+        </table>
+
+        <h4>Overrides by Reason</h4>
+        <table class="wp-list-table widefat fixed striped">
+            <thead>
+                <tr>
+                    <th>Reason</th>
+                    <th>Count</th>
+                    <th>% of Total Overrides</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php
+                $reason_stats = $wpdb->get_results("
+                    SELECT
+                        r.reason_text,
+                        COUNT(v.id) as override_count
+                    FROM {$wpdb->prefix}svdp_vouchers v
+                    INNER JOIN {$wpdb->prefix}svdp_override_reasons r ON v.reason_id = r.id
+                    WHERE v.reason_id IS NOT NULL
+                    GROUP BY r.id, r.reason_text
+                    ORDER BY override_count DESC
+                ");
+
+                if (empty($reason_stats)) {
+                    echo '<tr><td colspan="3">No override data yet.</td></tr>';
+                } else {
+                    foreach ($reason_stats as $stat) {
+                        $pct = $override_count > 0 ? round(($stat->override_count / $override_count) * 100, 1) : 0;
+                        echo '<tr>';
+                        echo '<td>' . esc_html($stat->reason_text) . '</td>';
+                        echo '<td>' . number_format($stat->override_count) . '</td>';
+                        echo '<td>' . $pct . '%</td>';
+                        echo '</tr>';
+                    }
+                }
+                ?>
+            </tbody>
+        </table>
+    </div>
+
 </div>
 
 <style>

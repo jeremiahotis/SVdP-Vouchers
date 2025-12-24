@@ -12,6 +12,8 @@
     let autoRefreshInterval = null;    // Store interval ID
     let pendingOverrideData = null;   // For override modal
     let currentCoatVoucher = null;    // For coat modal
+    let currentRedemptionVoucher = null; // For redemption modal
+    let itemValues = svdpVouchers.itemValues || { adult: 5.00, child: 3.00 }; // Item values from settings
 
     $(document).ready(function() {
         // Check if we're on the cashier station page
@@ -25,6 +27,9 @@
             initializeEmergencyForm();
             initializeModal();
             initializeCoatModal();
+            initializeRedemptionModal();
+            loadItemValues();
+            loadOverrideReasons(); // Load dropdown options
             loadVouchers();
             setupHeartbeat();
 
@@ -60,7 +65,7 @@
             error: function(xhr) {
                 // Handle 403 (nonce expired) specially
                 if (xhr.status === 403) {
-                    handleNonceExpired(function() {
+                    handleAuthError(function() {
                         // Retry after nonce refresh
                         loadVouchers(silent);
                     }, function() {
@@ -181,6 +186,19 @@
     }
 
     /**
+     * Format date from YYYY-MM-DD to MM/DD/YYYY
+     */
+    function formatDateToUS(dateStr) {
+        if (!dateStr) return '';
+        // Convert YYYY-MM-DD to MM/DD/YYYY
+        const parts = dateStr.split('-');
+        if (parts.length === 3) {
+            return parts[1] + '/' + parts[2] + '/' + parts[0];
+        }
+        return dateStr; // Return as-is if not in expected format
+    }
+
+    /**
      * Render a single voucher card
      */
     function renderVoucherCard(voucher) {
@@ -193,18 +211,34 @@
         // Card Header
         card += '<div class="svdp-card-header">';
         card += '<div class="svdp-card-name">' + voucher.first_name + ' ' + voucher.last_name + '</div>';
+        card += '<div>';
+        // Voucher type badge
+        if (voucher.voucher_type) {
+            const voucherTypeCaps = voucher.voucher_type.charAt(0).toUpperCase() + voucher.voucher_type.slice(1);
+            card += '<span class="svdp-type-badge" style="background: #2271b1; color: white; padding: 3px 8px; border-radius: 3px; font-size: 11px; margin-right: 5px;">' + voucherTypeCaps + '</span>';
+        }
         card += '<span class="svdp-status-badge ' + statusBadgeClass + '">' + voucher.status + '</span>';
+        card += '</div>';
         card += '</div>';
 
         // Card Details
         card += '<div class="svdp-card-details">';
         card += '<div class="svdp-detail-item">';
         card += '<span class="svdp-detail-label">DOB</span>';
-        card += '<span class="svdp-detail-value">' + voucher.dob + '</span>';
-        card += '</div>';
-        card += '<div class="svdp-detail-item">';
+        card += '<span class="svdp-detail-value">' + formatDateToUS(voucher.dob) + '</span>';
+        card += '</div>';        card += '<div class="svdp-detail-item">';
         card += '<span class="svdp-detail-label">Household</span>';
-        card += '<span class="svdp-detail-value">' + total + ' people ($' + voucher.voucher_value + ')</span>';
+        card += '<span class="svdp-detail-value">' + total + ' people</span>';
+        card += '</div>';
+        // Calculate items breakdown
+        const itemsPerPerson = voucher.created_by === 'Cashier' ? 3 : 7;
+        const adultItems = parseInt(voucher.adults) * itemsPerPerson;
+        const childItems = parseInt(voucher.children) * itemsPerPerson;
+        const totalItems = adultItems + childItems;
+
+        card += '<div class="svdp-detail-item">';
+        card += '<span class="svdp-detail-label">Items Allowed</span>';
+        card += '<span class="svdp-detail-value">' + totalItems + ' (' + adultItems + ' adult, ' + childItems + ' child)</span>';
         card += '</div>';
         card += '<div class="svdp-detail-item">';
         card += '<span class="svdp-detail-label">Conference</span>';
@@ -220,6 +254,20 @@
             card += '<span class="svdp-detail-label">Redeemed</span>';
             card += '<span class="svdp-detail-value">' + voucher.redeemed_date + '</span>';
             card += '</div>';
+            // Show items redeemed if available
+            if (voucher.items_adult_redeemed || voucher.items_children_redeemed) {
+                const totalRedeemed = (voucher.items_adult_redeemed || 0) + (voucher.items_children_redeemed || 0);
+                card += '<div class="svdp-detail-item">';
+                card += '<span class="svdp-detail-label">Items Redeemed</span>';
+                card += '<span class="svdp-detail-value">' + totalRedeemed + ' (' + (voucher.items_adult_redeemed || 0) + ' adult, ' + (voucher.items_children_redeemed || 0) + ' child)</span>';
+                card += '</div>';
+            }
+            if (voucher.redemption_total_value) {
+                card += '<div class="svdp-detail-item">';
+                card += '<span class="svdp-detail-label">Redemption Value</span>';
+                card += '<span class="svdp-detail-value">$' + parseFloat(voucher.redemption_total_value).toFixed(2) + '</span>';
+                card += '</div>';
+            }
         }
 
         card += '</div>'; // End card details
@@ -282,11 +330,12 @@
      * Attach event listeners to card action buttons
      */
     function attachCardEventListeners() {
-        // Redeem button
+        // Redeem button - open redemption modal
         $('.svdp-redeem-btn').off('click').on('click', function() {
             const voucherId = $(this).data('id');
-            if (confirm('Mark this voucher as redeemed?')) {
-                updateVoucherStatus(voucherId, 'Redeemed');
+            const voucher = allVouchers.find(v => v.id == voucherId);
+            if (voucher) {
+                showRedemptionModal(voucher);
             }
         });
 
@@ -373,7 +422,7 @@
             },
             error: function(xhr) {
                 if (xhr.status === 403) {
-                    handleNonceExpired(function() {
+                    handleAuthError(function() {
                         updateVoucherStatus(voucherId, newStatus); // Retry
                     }, function() {
                         alert('Error updating status: Session expired. Please refresh the page.');
@@ -488,22 +537,45 @@
     }
 
     /**
+     * Load override reasons from REST API
+     */
+    function loadOverrideReasons() {
+        $.ajax({
+            url: svdpVouchers.restUrl + 'svdp/v1/override-reasons',
+            method: 'GET',
+            success: function(reasons) {
+                const select = $('#svdpOverrideReason');
+                select.empty().append('<option value="">Select a reason...</option>');
+
+                reasons.forEach(function(reason) {
+                    select.append($('<option>', {
+                        value: reason.id,
+                        text: reason.reason_text
+                    }));
+                });
+            },
+            error: function() {
+                console.error('Failed to load override reasons');
+            }
+        });
+    }
+
+    /**
      * Show override modal for exact duplicate
      */
     function showOverrideModal(duplicateData, formData) {
         const modal = $('#svdpOverrideModal');
         const message = $('#svdpOverrideMessage');
-        const cashierNameSection = $('#svdpCashierNameSection');
 
         let msg = '<strong>' + duplicateData.firstName + ' ' + duplicateData.lastName + '</strong> already has a voucher:<br><br>';
         msg += '<strong>Conference:</strong> ' + duplicateData.conference + '<br>';
         msg += '<strong>Created:</strong> ' + duplicateData.voucherCreatedDate + '<br>';
         msg += '<strong>Next Eligible:</strong> ' + duplicateData.nextEligibleDate + '<br><br>';
-        msg += '<strong>Do you want to override and create an emergency voucher anyway?</strong>';
+        msg += '<strong>Manager approval required to override and create an emergency voucher.</strong>';
 
         message.html(msg);
-        cashierNameSection.show();
-        $('#svdpCashierName').val('');
+        $('#svdpManagerCode').val('');
+        $('#svdpOverrideReason').val('');
 
         // Store both formData and duplicateData
         pendingOverrideData = {
@@ -524,14 +596,22 @@
                 saveDeniedVoucher(pendingOverrideData.formData, pendingOverrideData.duplicateData);
             }
             $('#svdpOverrideModal').hide();
+            $('#svdpManagerCode').val('');
+            $('#svdpOverrideReason').val('');
             pendingOverrideData = null;
         });
 
         $('#svdpConfirmOverride').on('click', function() {
-            const cashierName = $('#svdpCashierName').val().trim();
+            const managerCode = $('#svdpManagerCode').val().trim();
+            const reasonId = $('#svdpOverrideReason').val();
 
-            if (!cashierName) {
-                alert('Please enter your name for the override record');
+            if (!managerCode || managerCode.length !== 6) {
+                alert('Please enter a valid 6-digit manager code');
+                return;
+            }
+
+            if (!reasonId) {
+                alert('Please select a reason for the override');
                 return;
             }
 
@@ -540,16 +620,40 @@
                 return;
             }
 
-            // Add override note
-            pendingOverrideData.formData.overrideNote = 'Emergency override by ' + cashierName + ' on ' + new Date().toLocaleDateString();
+            // Validate manager code via REST API
+            $.ajax({
+                url: svdpVouchers.restUrl + 'svdp/v1/managers/validate',
+                method: 'POST',
+                headers: {
+                    'X-WP-Nonce': svdpVouchers.nonce
+                },
+                data: JSON.stringify({ code: managerCode }),
+                contentType: 'application/json',
+                success: function(response) {
+                    if (response.valid) {
+                        // Code is valid - attach manager_id and reason_id
+                        pendingOverrideData.formData.manager_id = response.id;
+                        pendingOverrideData.formData.reason_id = parseInt(reasonId);
 
-            const form = $('#svdpEmergencyForm');
-            const submitBtn = form.find('button[type="submit"]');
-            const messageDiv = $('#svdpEmergencyMessage');
+                        const form = $('#svdpEmergencyForm');
+                        const submitBtn = form.find('button[type="submit"]');
+                        const messageDiv = $('#svdpEmergencyMessage');
 
-            $('#svdpOverrideModal').hide();
-            createEmergencyVoucher(pendingOverrideData.formData, submitBtn, messageDiv, form);
-            pendingOverrideData = null;
+                        $('#svdpOverrideModal').hide();
+                        $('#svdpManagerCode').val(''); // Clear for security
+                        $('#svdpOverrideReason').val('');
+
+                        createEmergencyVoucher(pendingOverrideData.formData, submitBtn, messageDiv, form);
+                        pendingOverrideData = null;
+                    } else {
+                        alert('Invalid manager code. Please try again.');
+                        $('#svdpManagerCode').val('').focus();
+                    }
+                },
+                error: function() {
+                    alert('Error validating manager code. Please try again.');
+                }
+            });
         });
     }
 
@@ -657,7 +761,7 @@
             },
             error: function(xhr) {
                 if (xhr.status === 403) {
-                    handleNonceExpired(function() {
+                    handleAuthError(function() {
                         submitCoatIssuance(); // Retry
                     }, function() {
                         showMessage('error', 'Session expired. Please refresh the page.', messageDiv);
@@ -668,6 +772,190 @@
             },
             complete: function() {
                 submitBtn.prop('disabled', false).text('Issue Coats');
+            }
+        });
+    }
+
+    /**
+     * Load item values from settings
+     */
+    function loadItemValues() {
+        // Item values are now loaded from backend
+        // Default values are set in global variables
+        // In future, could make AJAX call to get current settings
+    }
+
+    /**
+     * Initialize redemption modal
+     */
+    function initializeRedemptionModal() {
+        // Cancel button
+        $('#svdpCancelRedemption').on('click', function() {
+            closeRedemptionModal();
+        });
+
+        // Form submission
+        $('#svdpRedemptionForm').on('submit', function(e) {
+            e.preventDefault();
+            submitRedemption();
+        });
+
+        // Real-time item calculation
+        $('#svdpItemsAdult, #svdpItemsChildren').on('input', function() {
+            updateRedemptionSummary();
+        });
+
+        // Click outside modal to close
+        $('#svdpRedemptionModal').on('click', function(e) {
+            if ($(e.target).is('#svdpRedemptionModal')) {
+                closeRedemptionModal();
+            }
+        });
+    }
+
+    /**
+     * Show redemption modal
+     */
+    function showRedemptionModal(voucher) {
+        currentRedemptionVoucher = voucher;
+
+        // Calculate max items
+        const householdSize = parseInt(voucher.adults) + parseInt(voucher.children);
+        const maxAdultItems = parseInt(voucher.adults) * 7; // Assuming 7 items per person
+        const maxChildItems = parseInt(voucher.children) * 7;
+        const maxTotalItems = voucher.voucher_items_count || (householdSize * 7);
+
+        // Populate info section
+        let info = '<strong>Voucher Details:</strong><br>';
+        info += 'Name: ' + voucher.first_name + ' ' + voucher.last_name + '<br>';
+        info += 'Household: ' + voucher.adults + ' adults, ' + voucher.children + ' children (' + householdSize + ' total)<br>';
+        info += 'Voucher Type: ' + (voucher.voucher_type ? voucher.voucher_type.charAt(0).toUpperCase() + voucher.voucher_type.slice(1) : 'Clothing') + '<br>';
+        info += 'Allowed Items: ' + maxTotalItems;
+        $('#svdpRedemptionVoucherInfo').html(info);
+
+        // Set voucher ID
+        $('#svdpRedemptionVoucherId').val(voucher.id);
+
+        // Set max values
+        $('#svdpMaxAdultItems').text(maxAdultItems);
+        $('#svdpMaxChildItems').text(maxChildItems);
+        $('#svdpMaxTotalItems').text(maxTotalItems);
+
+        // Reset form
+        $('#svdpItemsAdult').attr('max', maxAdultItems).val(0);
+        $('#svdpItemsChildren').attr('max', maxChildItems).val(0);
+
+        // Reset error
+        $('#svdpRedemptionError').hide();
+
+        updateRedemptionSummary();
+        $('#svdpRedemptionModal').fadeIn(200);
+    }
+
+    /**
+     * Close redemption modal
+     */
+    function closeRedemptionModal() {
+        $('#svdpRedemptionModal').fadeOut(200);
+        $('#svdpRedemptionForm')[0].reset();
+        currentRedemptionVoucher = null;
+    }
+
+    /**
+     * Update redemption summary
+     */
+    function updateRedemptionSummary() {
+        const adultItems = parseInt($('#svdpItemsAdult').val()) || 0;
+        const childItems = parseInt($('#svdpItemsChildren').val()) || 0;
+        const totalItems = adultItems + childItems;
+
+        const maxAdultItems = parseInt($('#svdpMaxAdultItems').text()) || 0;
+        const maxChildItems = parseInt($('#svdpMaxChildItems').text()) || 0;
+        const maxTotalItems = parseInt($('#svdpMaxTotalItems').text()) || 0;
+
+        // Calculate estimated value
+        const estimatedValue = (adultItems * itemValues.adult) + (childItems * itemValues.child);
+
+        // Update display
+        $('#svdpTotalItems').text(totalItems);
+        $('#svdpEstimatedValue').text(estimatedValue.toFixed(2));
+
+        // Validation
+        const errorDiv = $('#svdpRedemptionError');
+        let errors = [];
+
+        if (adultItems > maxAdultItems) {
+            errors.push('Adult items exceed maximum (' + maxAdultItems + ')');
+        }
+        if (childItems > maxChildItems) {
+            errors.push('Child items exceed maximum (' + maxChildItems + ')');
+        }
+        if (totalItems > maxTotalItems) {
+            errors.push('Total items exceed maximum (' + maxTotalItems + ')');
+        }
+        if (totalItems === 0) {
+            errors.push('Must provide at least 1 item');
+        }
+
+        if (errors.length > 0) {
+            errorDiv.html('⚠️ ' + errors.join('<br>⚠️ ')).show();
+            $('#svdpConfirmRedemption').prop('disabled', true);
+        } else {
+            errorDiv.hide();
+            $('#svdpConfirmRedemption').prop('disabled', false);
+        }
+    }
+
+    /**
+     * Submit redemption
+     */
+    function submitRedemption() {
+        const voucherId = $('#svdpRedemptionVoucherId').val();
+        const adultItems = parseInt($('#svdpItemsAdult').val()) || 0;
+        const childItems = parseInt($('#svdpItemsChildren').val()) || 0;
+        const messageDiv = $('#svdpEmergencyMessage');
+
+        const submitBtn = $('#svdpConfirmRedemption');
+        submitBtn.prop('disabled', true).text('Redeeming...');
+
+        $.ajax({
+            url: svdpVouchers.restUrl + 'svdp/v1/vouchers/' + voucherId + '/status',
+            method: 'PATCH',
+            contentType: 'application/json',
+            headers: {
+                'X-WP-Nonce': svdpVouchers.nonce
+            },
+            data: JSON.stringify({
+                status: 'Redeemed',
+                items_adult: adultItems,
+                items_children: childItems
+            }),
+            success: function(response) {
+                closeRedemptionModal();
+                showMessage('success',
+                    '✅ Voucher redeemed successfully! ' +
+                    'Items: ' + (adultItems + childItems) + ', Value: $' + response.redemption_value,
+                    messageDiv
+                );
+                loadVouchers(true); // Silent reload
+
+                setTimeout(function() {
+                    messageDiv.fadeOut();
+                }, 5000);
+            },
+            error: function(xhr) {
+                if (xhr.status === 403) {
+                    handleAuthError(function() {
+                        submitRedemption(); // Retry
+                    }, function() {
+                        showMessage('error', 'Session expired. Please refresh the page.', messageDiv);
+                    });
+                } else {
+                    showMessage('error', 'Failed to redeem voucher: ' + (xhr.responseJSON?.message || 'Unknown error'), messageDiv);
+                }
+            },
+            complete: function() {
+                submitBtn.prop('disabled', false).text('Mark as Redeemed');
             }
         });
     }
@@ -713,7 +1001,7 @@
             },
             error: function(xhr) {
                 if (xhr.status === 403) {
-                    handleNonceExpired(function() {
+                    handleAuthError(function() {
                         createEmergencyVoucher(formData, submitBtn, messageDiv, form); // Retry
                     }, function() {
                         const error = 'Session expired. Please refresh the page.';
@@ -760,39 +1048,71 @@
     }
 
     /**
-     * Handle expired nonce - request fresh one and retry
+     * Handle authentication errors - primarily for cookie expiration
+     *
+     * With cookie-based auth (no nonce required), this mainly handles
+     * session refresh via heartbeat to extend the auth cookie.
      */
-    function handleNonceExpired(onSuccess, onError) {
-        console.log('⚠ Nonce expired, requesting fresh nonce...');
+    function handleAuthError(onSuccess, onError) {
+        console.log('⚠ Authentication error, triggering session refresh...');
 
-        $.ajax({
-            url: svdpVouchers.restUrl + 'svdp/v1/auth/refresh-nonce',
-            method: 'POST',
-            // Don't send nonce header - this endpoint uses cookie auth
-            success: function(response) {
-                if (response.nonce) {
-                    svdpVouchers.nonce = response.nonce;
-                    console.log('✓ Nonce refreshed successfully');
-                    onSuccess();
-                } else {
-                    console.error('Nonce refresh failed: no nonce in response');
-                    onError();
+        // Check if WordPress heartbeat is available
+        if (typeof wp === 'undefined' || typeof wp.heartbeat === 'undefined') {
+            console.error('Heartbeat not available - cannot refresh session');
+            if (onError) onError();
+            return;
+        }
+
+        let refreshed = false;
+        let timedOut = false;
+
+        // Set up one-time listener for next heartbeat tick
+        let tickHandler = function(event, data) {
+            if (timedOut) return;
+
+            if (data.svdp_heartbeat_status === 'active') {
+                refreshed = true;
+                // Update nonce for backwards compatibility (server ignores it now)
+                if (data.svdp_nonce) {
+                    svdpVouchers.nonce = data.svdp_nonce;
                 }
-            },
-            error: function(xhr) {
-                console.error('Nonce refresh failed:', xhr.status);
-                onError();
+                console.log('✓ Session refreshed via heartbeat');
+                $(document).off('heartbeat-tick', tickHandler);
+                if (onSuccess) onSuccess();
+            } else if (data.svdp_heartbeat_status === 'logged_out') {
+                console.error('User logged out on server');
+                $(document).off('heartbeat-tick', tickHandler);
+                if (onError) onError();
             }
-        });
+        };
+
+        $(document).on('heartbeat-tick', tickHandler);
+
+        // Trigger immediate heartbeat to refresh session
+        wp.heartbeat.connectNow();
+
+        // Timeout fallback in case heartbeat fails
+        setTimeout(function() {
+            timedOut = true;
+            $(document).off('heartbeat-tick', tickHandler);
+
+            if (!refreshed) {
+                console.error('Heartbeat refresh timeout - session not refreshed');
+                if (onError) onError();
+            }
+        }, 10000);
     }
 
     /**
-     * Setup WordPress Heartbeat for session keep-alive and nonce refresh
+     * Setup WordPress Heartbeat for session keep-alive
+     *
+     * With cookie-based authentication, heartbeat extends the auth cookie
+     * to keep the session alive for long-running cashier shifts.
      */
     function setupHeartbeat() {
         // Only run if Heartbeat API is available
         if (typeof wp === 'undefined' || typeof wp.heartbeat === 'undefined') {
-            console.warn('WordPress Heartbeat API not available - nonce refresh disabled');
+            console.warn('WordPress Heartbeat API not available - session keep-alive disabled');
             return;
         }
 
@@ -807,10 +1127,12 @@
                 // User was logged out server-side
                 handleLoadError({ status: 401 });
                 autoRefreshEnabled = false;
-            } else if (data.svdp_nonce) {
-                // Update nonce with fresh value
-                svdpVouchers.nonce = data.svdp_nonce;
-                console.log('✓ Nonce refreshed via heartbeat');
+            } else if (data.svdp_heartbeat_status === 'active') {
+                // Session is active - update nonce for backwards compatibility
+                if (data.svdp_nonce) {
+                    svdpVouchers.nonce = data.svdp_nonce;
+                }
+                console.log('✓ Session kept alive via heartbeat');
             }
         });
 
@@ -820,7 +1142,7 @@
             // Don't stop auto-refresh - heartbeat is supplementary
         });
 
-        console.log('✓ Heartbeat session keep-alive enabled (60s interval)');
+        console.log('✓ Heartbeat session keep-alive enabled (15s interval)');
     }
 
 })(jQuery);

@@ -8,6 +8,12 @@
         <a href="?page=svdp-vouchers&tab=conferences" class="nav-tab <?php echo $active_tab === 'conferences' ? 'nav-tab-active' : ''; ?>">
             Conferences
         </a>
+        <a href="?page=svdp-vouchers&tab=managers" class="nav-tab <?php echo $active_tab === 'managers' ? 'nav-tab-active' : ''; ?>">
+            Managers
+        </a>
+        <a href="?page=svdp-vouchers&tab=override-reasons" class="nav-tab <?php echo $active_tab === 'override-reasons' ? 'nav-tab-active' : ''; ?>">
+            Override Reasons
+        </a>
         <a href="?page=svdp-vouchers&tab=settings" class="nav-tab <?php echo $active_tab === 'settings' ? 'nav-tab-active' : ''; ?>">
             Settings
         </a>
@@ -21,6 +27,12 @@
                 break;
             case 'conferences':
                 include 'tab-conferences.php';
+                break;
+            case 'managers':
+                include 'managers-tab.php';
+                break;
+            case 'override-reasons':
+                include 'override-reasons-tab.php';
                 break;
             case 'settings':
                 include 'tab-settings.php';

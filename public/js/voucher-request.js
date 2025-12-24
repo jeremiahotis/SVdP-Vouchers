@@ -5,6 +5,35 @@
         const form = $('#svdpVoucherForm');
         const messageDiv = $('#svdpFormMessage');
 
+        // Smart date field setup
+        function isMobile() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
+        // Detect if browser supports date input
+        const dateInput = document.createElement('input');
+        dateInput.setAttribute('type', 'date');
+        const supportsDateInput = dateInput.type === 'date';
+
+        // If date input not supported OR on mobile, use text input with auto-format
+        if (!supportsDateInput || isMobile()) {
+            const dobField = $('#svdp-dob-input');
+            dobField.attr('type', 'text');
+            dobField.attr('pattern', '\\d{2}/\\d{2}/\\d{4}');
+
+            // Auto-format with slash insertion
+            dobField.on('input', function(e) {
+                let value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+                if (value.length >= 2) {
+                    value = value.substring(0, 2) + '/' + value.substring(2);
+                }
+                if (value.length >= 5) {
+                    value = value.substring(0, 5) + '/' + value.substring(5, 9);
+                }
+                e.target.value = value;
+            });
+        }
+
         form.on('submit', function(e) {
             e.preventDefault();
 
@@ -15,10 +44,18 @@
             // Clear previous messages
             messageDiv.hide().removeClass('success error');
 
-            // Convert MM/DD/YYYY to YYYY-MM-DD for backend
+            // Get DOB value - handle both date input and text input
+            let dobFormatted;
             const dobInput = $('input[name="dob"]').val();
-            const dobParts = dobInput.split('/');
-            const dobFormatted = dobParts[2] + '-' + dobParts[0] + '-' + dobParts[1];
+
+            if ($('input[name="dob"]').attr('type') === 'date') {
+                // Native date input returns YYYY-MM-DD
+                dobFormatted = dobInput;
+            } else {
+                // Text input returns MM/DD/YYYY, convert to YYYY-MM-DD
+                const dobParts = dobInput.split('/');
+                dobFormatted = dobParts[2] + '-' + dobParts[0] + '-' + dobParts[1];
+            }
 
             // Collect form data
             const formData = {
@@ -28,6 +65,7 @@
                 adults: parseInt($('input[name="adults"]').val()),
                 children: parseInt($('input[name="children"]').val()),
                 conference: $('[name="conference"]').val(),
+                voucherType: $('[name="voucherType"]').val() || 'clothing',
                 vincentianName: $('input[name="vincentianName"]').val().trim(),
                 vincentianEmail: $('input[name="vincentianEmail"]').val().trim(),
             };
@@ -43,6 +81,7 @@
                     firstName: formData.firstName,
                     lastName: formData.lastName,
                     dob: formData.dob,
+                    voucherType: formData.voucherType,
                     createdBy: 'Vincentian'
                 }),
                 contentType: 'application/json',

@@ -96,6 +96,11 @@ class SVDP_Database {
         dbDelta($conferences_sql);
         dbDelta($settings_sql);
 
+        // Create new tables for manager override system
+        self::create_managers_table();
+        self::create_override_reasons_table();
+        self::add_override_columns();
+
         // Insert default conferences and settings
         self::insert_default_conferences();
         self::insert_default_settings();
@@ -208,5 +213,101 @@ class SVDP_Database {
 
         // Insert default settings if not already present
         self::insert_default_settings();
+    }
+
+    /**
+     * Create managers table for override system
+     */
+    public static function create_managers_table() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'svdp_managers';
+        $charset_collate = $wpdb->get_charset_collate();
+
+        $sql = "CREATE TABLE $table (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            name varchar(200) NOT NULL,
+            code_hash varchar(255) NOT NULL,
+            active tinyint(1) NOT NULL DEFAULT 1,
+            created_date datetime NOT NULL,
+            PRIMARY KEY (id),
+            KEY active (active)
+        ) $charset_collate;";
+
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+        dbDelta($sql);
+    }
+
+    /**
+     * Create override reasons table
+     */
+    public static function create_override_reasons_table() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'svdp_override_reasons';
+        $charset_collate = $wpdb->get_charset_collate();
+
+        $sql = "CREATE TABLE $table (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            reason_text varchar(255) NOT NULL,
+            display_order int(11) NOT NULL DEFAULT 0,
+            active tinyint(1) NOT NULL DEFAULT 1,
+            PRIMARY KEY (id),
+            KEY active_order (active, display_order)
+        ) $charset_collate;";
+
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+        dbDelta($sql);
+
+        // Insert default reasons
+        self::insert_default_reasons();
+    }
+
+    /**
+     * Insert default override reasons
+     */
+    private static function insert_default_reasons() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'svdp_override_reasons';
+
+        // Check if reasons already exist
+        $count = $wpdb->get_var("SELECT COUNT(*) FROM $table");
+        if ($count > 0) {
+            return;
+        }
+
+        $defaults = [
+            'Urgent family emergency',
+            'Recent disaster or fire',
+            'Medical emergency',
+            'Housing crisis/eviction',
+            'Other special circumstance'
+        ];
+
+        foreach ($defaults as $index => $reason) {
+            $wpdb->insert($table, [
+                'reason_text' => $reason,
+                'display_order' => $index,
+                'active' => 1
+            ]);
+        }
+    }
+
+    /**
+     * Add manager_id and reason_id columns to vouchers table
+     */
+    public static function add_override_columns() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'svdp_vouchers';
+
+        // Check if columns already exist
+        $manager_col = $wpdb->get_results("SHOW COLUMNS FROM $table LIKE 'manager_id'");
+        if (empty($manager_col)) {
+            $wpdb->query("ALTER TABLE $table
+                ADD COLUMN manager_id bigint(20) DEFAULT NULL AFTER override_note,
+                ADD COLUMN reason_id bigint(20) DEFAULT NULL AFTER manager_id");
+
+            $wpdb->query("ALTER TABLE $table
+                ADD KEY manager_id (manager_id),
+                ADD KEY reason_id (reason_id)");
+        }
     }
 }

@@ -26,6 +26,8 @@ require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-conference.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-voucher.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-shortcodes.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-admin.php';
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-manager.php';
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-override-reason.php';
 
 /**
  * Main plugin class
@@ -49,6 +51,9 @@ class SVDP_Vouchers_Plugin {
         // WordPress Heartbeat for session keep-alive
         add_filter('heartbeat_settings', [$this, 'configure_heartbeat']);
         add_filter('heartbeat_received', [$this, 'heartbeat_received'], 10, 2);
+
+        // REST API authentication for long-running sessions
+        add_filter('rest_authentication_errors', [$this, 'handle_rest_authentication'], 99);
     }
     
     /**
@@ -108,9 +113,7 @@ class SVDP_Vouchers_Plugin {
         register_rest_route('svdp/v1', '/vouchers', [
             'methods' => 'GET',
             'callback' => ['SVDP_Voucher', 'get_vouchers'],
-            'permission_callback' => function() {
-                return is_user_logged_in();
-            }
+            'permission_callback' => [$this, 'user_can_access_cashier']
         ]);
         
         // Check for duplicate
@@ -131,18 +134,14 @@ class SVDP_Vouchers_Plugin {
         register_rest_route('svdp/v1', '/vouchers/(?P<id>\d+)/status', [
             'methods' => 'PATCH',
             'callback' => ['SVDP_Voucher', 'update_status'],
-            'permission_callback' => function() {
-                return is_user_logged_in();
-            }
+            'permission_callback' => [$this, 'user_can_access_cashier']
         ]);
         
         // Update coat status
         register_rest_route('svdp/v1', '/vouchers/(?P<id>\d+)/coat', [
             'methods' => 'PATCH',
             'callback' => ['SVDP_Voucher', 'update_coat_status'],
-            'permission_callback' => function() {
-                return is_user_logged_in();
-            }
+            'permission_callback' => [$this, 'user_can_access_cashier']
         ]);
         
         // Get conferences
@@ -159,14 +158,6 @@ class SVDP_Vouchers_Plugin {
             'permission_callback' => '__return_true'
         ]);
 
-        register_rest_route('svdp/v1', '/vouchers/(?P<id>\d+)/coat', [
-            'methods' => 'PATCH',
-            'callback' => ['SVDP_Voucher', 'update_coat_status'],
-            'permission_callback' => function() {
-                return current_user_can('edit_posts'); // Adjust permission as needed
-            }
-        ]);
-
         // Nonce refresh endpoint (fallback if heartbeat fails)
         register_rest_route('svdp/v1', '/auth/refresh-nonce', [
             'methods' => 'POST',
@@ -175,6 +166,20 @@ class SVDP_Vouchers_Plugin {
                 // Only require logged in - don't check nonce
                 return is_user_logged_in();
             }
+        ]);
+
+        // Manager validation endpoint
+        register_rest_route('svdp/v1', '/managers/validate', [
+            'methods' => 'POST',
+            'callback' => ['SVDP_Manager', 'validate_code_endpoint'],
+            'permission_callback' => '__return_true'
+        ]);
+
+        // Get active override reasons
+        register_rest_route('svdp/v1', '/override-reasons', [
+            'methods' => 'GET',
+            'callback' => ['SVDP_Override_Reason', 'get_active_endpoint'],
+            'permission_callback' => '__return_true'
         ]);
 
     }
@@ -208,6 +213,56 @@ class SVDP_Vouchers_Plugin {
             }
         }
         return $response;
+    }
+
+    /**
+     * Custom REST authentication for long-running cashier sessions
+     *
+     * WordPress REST API behavior:
+     * - When X-WP-Nonce is present and INVALID, user is treated as anonymous
+     * - This prevents is_user_logged_in() from working even with valid cookie
+     *
+     * This filter bypasses nonce validation for SVDP routes only,
+     * allowing cookie-only authentication for long sessions.
+     */
+    public function handle_rest_authentication($result) {
+        // If another plugin has already handled auth, respect that
+        if ($result !== null) {
+            return $result;
+        }
+
+        // Only apply to SVDP REST routes
+        $rest_route = $GLOBALS['wp']->query_vars['rest_route'] ?? '';
+        if (strpos($rest_route, '/svdp/v1/') !== 0) {
+            return $result; // Let WordPress handle other routes normally
+        }
+
+        // For SVDP routes, validate the cookie manually
+        // This bypasses the nonce check but still requires valid login
+        $user_id = wp_validate_auth_cookie('', 'logged_in');
+
+        if ($user_id) {
+            // Valid cookie - set the current user
+            wp_set_current_user($user_id);
+            return true; // Authentication successful
+        }
+
+        // No valid cookie - let WordPress continue with normal auth
+        // (which will fail, returning 401/403 as expected)
+        return $result;
+    }
+
+    /**
+     * Check if current user has cashier access
+     */
+    public function user_can_access_cashier() {
+        if (!is_user_logged_in()) {
+            return false;
+        }
+
+        $user = wp_get_current_user();
+        return in_array('svdp_cashier', $user->roles) ||
+               in_array('administrator', $user->roles);
     }
 
     /**
