@@ -310,4 +310,92 @@ class SVDP_Database {
                 ADD KEY reason_id (reason_id)");
         }
     }
+
+
+    /**
+     * Run DB migrations on admin_init (safe, idempotent).
+     *
+     * Migrations live in /db/migrations and are executed in numeric order.
+     * Each migration file must return a callable (closure) that performs schema changes/backfills.
+     */
+    public static function maybe_run_migrations() {
+        // Only run in wp-admin; avoid frontend cost and avoid running for anonymous visitors.
+        if (!is_admin()) {
+            return;
+        }
+
+        // Only users who can manage options should trigger migrations.
+        if (!current_user_can('manage_options')) {
+            return;
+        }
+
+        // Avoid running during AJAX/REST calls unless explicitly desired.
+        if (defined('DOING_AJAX') && DOING_AJAX) {
+            return;
+        }
+
+        self::run_migrations();
+    }
+
+    /**
+     * Execute pending migrations based on the stored schema version.
+     */
+    public static function run_migrations() {
+        global $wpdb;
+
+        $migrations_dir = trailingslashit(SVDP_VOUCHERS_PLUGIN_DIR) . 'db/migrations';
+        if (!is_dir($migrations_dir)) {
+            return;
+        }
+
+        // Existing plugin shipped as "v2" before formal migrations; start at 2 unless explicitly set.
+        $current_version = (int) get_option('svdp_schema_version', 2);
+
+        $files = glob($migrations_dir . '/v[0-9][0-9][0-9][0-9]__*.php');
+        if (!$files) {
+            // Ensure option exists for future.
+            if (get_option('svdp_schema_version', null) === null) {
+                add_option('svdp_schema_version', $current_version, '', false);
+            }
+            return;
+        }
+
+        // Sort by numeric prefix (v####)
+        usort($files, function($a, $b) {
+            $va = (int) preg_replace('/^v(\d{4}).*$/', '$1', basename($a));
+            $vb = (int) preg_replace('/^v(\d{4}).*$/', '$1', basename($b));
+            return $va <=> $vb;
+        });
+
+        foreach ($files as $file) {
+            $target_version = (int) preg_replace('/^v(\d{4}).*$/', '$1', basename($file));
+            if ($target_version <= $current_version) {
+                continue;
+            }
+
+            // Load migration callable
+            $callable = include $file;
+
+            if (!is_callable($callable)) {
+                // Fail closed: do not advance schema version.
+                error_log('SVdP Vouchers migration not callable: ' . basename($file));
+                return;
+            }
+
+            // Best-effort transaction. dbDelta may auto-commit; still useful for backfills.
+            $wpdb->query('START TRANSACTION');
+            try {
+                call_user_func($callable);
+                $wpdb->query('COMMIT');
+            } catch (Throwable $e) {
+                $wpdb->query('ROLLBACK');
+                error_log('SVdP Vouchers migration failed (' . basename($file) . '): ' . $e->getMessage());
+                return;
+            }
+
+            $current_version = $target_version;
+            update_option('svdp_schema_version', $current_version, false);
+        }
+    }
+
 }

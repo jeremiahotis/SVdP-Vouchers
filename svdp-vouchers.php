@@ -42,6 +42,9 @@ class SVDP_Vouchers_Plugin {
         // Initialize plugin
         add_action('plugins_loaded', [$this, 'init']);
         
+        // Run database migrations in admin context
+        add_action('admin_init', [$this, 'maybe_run_migrations']);
+        
         // Register REST API endpoints
         add_action('rest_api_init', [$this, 'register_rest_routes']);
         
@@ -104,6 +107,14 @@ class SVDP_Vouchers_Plugin {
             new SVDP_Admin();
         }
     }
+
+    /**
+     * Run DB migrations (admin only).
+     */
+    public function maybe_run_migrations() {
+        SVDP_Database::maybe_run_migrations();
+    }
+
     
     /**
      * Register REST API routes
