@@ -29,6 +29,10 @@ require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-shortcodes.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-admin.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-manager.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-override-reason.php';
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-audit.php';
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-import.php';
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-reconciliation.php';
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-rest-errors.php';
 
 /**
  * Main plugin class
@@ -50,6 +54,9 @@ class SVDP_Vouchers_Plugin
 
         // Register REST API endpoints
         add_action('rest_api_init', [$this, 'register_rest_routes']);
+
+        // CSV Import AJAX
+        add_action('wp_ajax_svdp_import_csv', [$this, 'handle_csv_import']);
 
         // Enqueue assets
         add_action('wp_enqueue_scripts', [$this, 'enqueue_frontend_assets']);
@@ -133,49 +140,49 @@ class SVDP_Vouchers_Plugin
         register_rest_route('svdp/v1', '/vouchers', [
             'methods' => 'GET',
             'callback' => ['SVDP_Voucher', 'get_vouchers'],
-            'permission_callback' => [$this, 'user_can_access_cashier']
+            'permission_callback' => [$this, 'check_cashier_access']
         ]);
 
         // Check for duplicate
         register_rest_route('svdp/v1', '/vouchers/check-duplicate', [
             'methods' => 'POST',
             'callback' => ['SVDP_Voucher', 'check_duplicate'],
-            'permission_callback' => '__return_true'
+            'permission_callback' => [$this, 'check_public_access'] // Frontend form
         ]);
 
         // Create voucher
         register_rest_route('svdp/v1', '/vouchers/create', [
             'methods' => 'POST',
             'callback' => ['SVDP_Voucher', 'create_voucher'],
-            'permission_callback' => '__return_true'
+            'permission_callback' => [$this, 'check_public_access'] // Frontend form
         ]);
 
         // Update voucher status
         register_rest_route('svdp/v1', '/vouchers/(?P<id>\d+)/status', [
             'methods' => 'PATCH',
             'callback' => ['SVDP_Voucher', 'update_status'],
-            'permission_callback' => [$this, 'user_can_access_cashier']
+            'permission_callback' => [$this, 'check_cashier_access']
         ]);
 
         // Update coat status
         register_rest_route('svdp/v1', '/vouchers/(?P<id>\d+)/coat', [
             'methods' => 'PATCH',
             'callback' => ['SVDP_Voucher', 'update_coat_status'],
-            'permission_callback' => [$this, 'user_can_access_cashier']
+            'permission_callback' => [$this, 'check_cashier_access']
         ]);
 
         // Get conferences
         register_rest_route('svdp/v1', '/conferences', [
             'methods' => 'GET',
             'callback' => ['SVDP_Conference', 'get_conferences'],
-            'permission_callback' => '__return_true'
+            'permission_callback' => [$this, 'check_public_access']
         ]);
 
         // Create denied voucher (for tracking)
         register_rest_route('svdp/v1', '/vouchers/create-denied', [
             'methods' => 'POST',
             'callback' => ['SVDP_Voucher', 'create_denied_voucher'],
-            'permission_callback' => '__return_true'
+            'permission_callback' => [$this, 'check_public_access']
         ]);
 
         // Nonce refresh endpoint (fallback if heartbeat fails)
@@ -183,7 +190,7 @@ class SVDP_Vouchers_Plugin
             'methods' => 'POST',
             'callback' => [$this, 'refresh_nonce'],
             'permission_callback' => function () {
-                // Only require logged in - don't check nonce
+                // Only require logged in - don't check nonce as checking it is the problem
                 return is_user_logged_in();
             }
         ]);
@@ -192,16 +199,80 @@ class SVDP_Vouchers_Plugin
         register_rest_route('svdp/v1', '/managers/validate', [
             'methods' => 'POST',
             'callback' => ['SVDP_Manager', 'validate_code_endpoint'],
-            'permission_callback' => '__return_true'
+            'permission_callback' => [$this, 'check_cashier_access'] // Should be cashier only
         ]);
 
         // Get active override reasons
         register_rest_route('svdp/v1', '/override-reasons', [
             'methods' => 'GET',
             'callback' => ['SVDP_Override_Reason', 'get_active_endpoint'],
-            'permission_callback' => '__return_true'
+            'permission_callback' => [$this, 'check_cashier_access'] // Cashier interface
         ]);
+    }
 
+    /**
+     * Verify nonce for REST requests
+     */
+    public function check_nonce($request)
+    {
+        $nonce = $request->get_header('X-WP-Nonce');
+        if (empty($nonce)) {
+            $nonce = $request->get_param('_wpnonce');
+        }
+
+        if (empty($nonce)) {
+            return SVDP_REST_Errors::forbidden('Missing nonce.');
+        }
+
+        if (!wp_verify_nonce($nonce, 'wp_rest')) {
+            return SVDP_REST_Errors::forbidden('Invalid nonce.');
+        }
+
+        return true;
+    }
+
+    /**
+     * Check public access (Cookie-based auth for SVDP routes)
+     *
+     * Note: handle_rest_authentication filter validates the cookie
+     * and sets current user. We just need to verify a user is logged in.
+     * Nonce validation is skipped for SVDP routes to support long sessions.
+     */
+    public function check_public_access($request)
+    {
+        // Cookie was already validated by handle_rest_authentication
+        // Just verify we have an authenticated user
+        if (!is_user_logged_in()) {
+            return SVDP_REST_Errors::forbidden('Authentication required.');
+        }
+        return true;
+    }
+
+    /**
+     * Check cashier access (Cookie + Capability)
+     *
+     * Note: Nonces are NOT required for SVDP routes. The
+     * handle_rest_authentication filter validates cookies for long sessions.
+     */
+    public function check_cashier_access($request)
+    {
+        if (!$this->user_can_access_cashier()) {
+            return SVDP_REST_Errors::forbidden('Cashier access required.');
+        }
+
+        return true;
+    }
+
+    /**
+     * Check admin access (Cookie + manage_options)
+     */
+    public function check_admin_access($request)
+    {
+        if (!current_user_can('manage_options')) {
+            return SVDP_REST_Errors::forbidden('Admin access required.');
+        }
+
+        return true;
     }
 
     /**
@@ -342,6 +413,27 @@ class SVDP_Vouchers_Plugin
 
         wp_localize_script('svdp-vouchers-request', 'svdpVouchers', $script_data);
         wp_localize_script('svdp-vouchers-cashier', 'svdpVouchers', $script_data);
+    }
+    public function handle_csv_import()
+    {
+        // Permission check
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Unauthorized access');
+        }
+
+        if (!isset($_FILES['import_file'])) {
+            wp_send_json_error('No file uploaded');
+        }
+
+        $store_id = isset($_POST['store_id']) ? intval($_POST['store_id']) : 0;
+
+        $result = SVDP_Import::process_upload($_FILES['import_file'], $store_id);
+
+        if (is_wp_error($result)) {
+            wp_send_json_error($result->get_error_message());
+        } else {
+            wp_send_json_success($result);
+        }
     }
 }
 

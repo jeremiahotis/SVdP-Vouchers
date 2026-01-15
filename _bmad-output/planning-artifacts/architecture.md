@@ -151,6 +151,12 @@ wp scaffold plugin svdp-vouchers
 - Changes to authorizations require cancel/reissue or override flow; no mutation of history.
 - Operational updates allowed only on voucher header (status, redemption, override metadata).
 
+**Billing calculation timing:** Billing shares (conference_share, store_share) are calculated and stored during receipt import (Epic 6), not at redemption time (Epic 5). This ensures:
+- Calculations use accurate POS gross_total data
+- Cashier redemption flow remains fast (barcode scanner workflow)
+- No double entry of gross_total
+- Billing shares are calculated once and stored for fast reporting
+
 ### Decision Priority Analysis
 
 **Critical Decisions (Block Implementation):**

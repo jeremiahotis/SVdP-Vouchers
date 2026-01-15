@@ -520,6 +520,19 @@ class SVDP_Voucher
 
         $voucher_id = $wpdb->insert_id;
 
+        // Log override event if manager approval was used
+        if ($manager_id && $reason_id) {
+            $cashier_user_id = get_current_user_id();
+            SVDP_Audit::log_override(
+                $voucher_id,
+                $manager_id,
+                $reason_id,
+                $cashier_user_id,
+                'duplicate_voucher',
+                $override_note
+            );
+        }
+
         // Calculate next eligible date (90 days from today)
         $next_eligible = new DateTime();
         $next_eligible->modify('+90 days');
@@ -728,6 +741,19 @@ class SVDP_Voucher
             return new WP_Error('update_failed', 'Failed to update status', ['status' => 500]);
         }
 
+        // Trigger Linking if Redeemed
+        if ($status === 'Redeemed' && !empty($receipt_id)) {
+            // Determine store_id
+            $final_store_id = isset($update_data['store_id']) ? $update_data['store_id'] : 0;
+            if (!$final_store_id) {
+                $final_store_id = $wpdb->get_var($wpdb->prepare("SELECT store_id FROM $table WHERE id = %d", $id));
+            }
+
+            if ($final_store_id) {
+                SVDP_Reconciliation::link_voucher($id, $final_store_id, $receipt_id);
+            }
+        }
+
         return rest_ensure_response([
             'success' => true,
             'redemption_value' => isset($redemption_value) ? number_format($redemption_value, 2) : null
@@ -786,7 +812,9 @@ class SVDP_Voucher
 
         $update_data = [
             'coat_status' => 'Issued',
-            'coat_issued_date' => date('Y-m-d'),
+            'coat_issued_date' => current_time('Y-m-d'),
+            'coat_issued_at' => current_time('mysql'),
+            'coat_issued_by' => get_current_user_id(),
             'coat_adults_issued' => $adults,
             'coat_children_issued' => $children,
         ];

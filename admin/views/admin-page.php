@@ -26,6 +26,22 @@
             class="nav-tab <?php echo $active_tab === 'override-reasons' ? 'nav-tab-active' : ''; ?>">
             Override Reasons
         </a>
+        <a href="?page=svdp-vouchers&tab=audit-trail"
+            class="nav-tab <?php echo $active_tab === 'audit-trail' ? 'nav-tab-active' : ''; ?>">
+            Audit Trail
+        </a>
+        <a href="?page=svdp-vouchers&tab=reports"
+            class="nav-tab <?php echo $active_tab === 'reports' ? 'nav-tab-active' : ''; ?>">
+            Reports
+        </a>
+        <a href="?page=svdp-vouchers&tab=reconciliation"
+            class="nav-tab <?php echo $active_tab === 'reconciliation' ? 'nav-tab-active' : ''; ?>">
+            Reconciliation
+        </a>
+        <a href="?page=svdp-vouchers&tab=imports"
+            class="nav-tab <?php echo $active_tab === 'imports' ? 'nav-tab-active' : ''; ?>">
+            Imports
+        </a>
         <a href="?page=svdp-vouchers&tab=settings"
             class="nav-tab <?php echo $active_tab === 'settings' ? 'nav-tab-active' : ''; ?>">
             Settings
@@ -52,6 +68,18 @@
                 break;
             case 'override-reasons':
                 include 'override-reasons-tab.php';
+                break;
+            case 'audit-trail':
+                include 'tab-audit-trail.php';
+                break;
+            case 'reports':
+                include 'tab-reports.php';
+                break;
+            case 'imports':
+                include 'tab-imports.php';
+                break;
+            case 'reconciliation':
+                include 'tab-reconciliation.php';
                 break;
             case 'settings':
                 include 'tab-settings.php';

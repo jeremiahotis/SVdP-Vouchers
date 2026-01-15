@@ -157,9 +157,9 @@ Opening scene: Neighbor shops as usual; cashier completes POS transaction and ge
 
 Rising action: Cashier opens the Cashier Station, finds the voucher, clicks Redeem.
 
-Climax: Cashier enters `receipt_id` (and gross total if required), confirms redemption.
+Climax: Cashier scans or enters `receipt_id`, confirms redemption. Fast, barcode-scanner-friendly workflow.
 
-Resolution: Voucher is marked redeemed, receipt is stored, billing math applied (50% up to cap; 100% over cap to store). Typos or mismatches surface later in reconciliation—not at the counter. The flow stays fast and judgment-free.
+Resolution: Voucher is marked redeemed with receipt_id stored. Billing calculations happen later when receipts are imported from POS system. Typos or mismatches surface during reconciliation—not at the counter. The flow stays fast and judgment-free.
 
 ### Store Staff/Manager — Weekly Reconciliation & Reporting
 Opening scene: Weekly, staff export ThriftWorks CSV and upload via Receipt Import (store-scoped).
@@ -305,7 +305,7 @@ Resolution: Managers view billing totals, cap utilization, overages, and categor
 
 ### Cashier Redemption
 - FR16 [MVP]: Cashiers can locate vouchers and redeem them at point of sale.
-- FR17 [MVP]: Redemption captures `receipt_id` (required) and gross total (configurable required/optional via settings).
+- FR17 [MVP]: Redemption captures `receipt_id` (required). Gross total is obtained from POS receipt import, not manual cashier entry.
 - FR18 [MVP]: Redemption updates voucher status and records cashier action details.
 - FR19 [MVP]: The system supports coat issuance in the cashier station only.
 
@@ -318,7 +318,7 @@ Resolution: Managers view billing totals, cap utilization, overages, and categor
 - FR24a [MVP]: Reconciliation is post‑hoc and does not block redemption at point of sale.
 
 ### Billing & Reporting
-- FR25 [MVP]: The system computes conference vs store payment shares using cap rules (conference pays 50% up to cap; store pays 50% of conference spend plus 100% over cap).
+- FR25 [MVP]: The system computes conference vs store payment shares during receipt import using cap rules (conference pays 50% up to cap; store pays 50% of conference spend plus 100% over cap). Billing shares are calculated and stored when receipts are linked to vouchers.
 - FR26 [GROWTH]: The system provides reporting by conference/store for billing totals.
 - FR27 [GROWTH]: The system surfaces reconciliation gaps (unmatched receipts or mismatches).
 

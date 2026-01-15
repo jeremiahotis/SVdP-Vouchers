@@ -369,21 +369,29 @@ So that redemption is linked to receipts for reconciliation.
 **When** redemption is saved
 **Then** the voucher is linked by store_id and receipt_id
 
-### Story 5.2: Billing Math on Redemption
+### Story 5.2: Billing Math on Receipt Import
 
 As store staff,
-I want billing math computed at redemption,
-So that conference vs store shares are consistent.
+I want billing math computed when receipts are imported and linked,
+So that conference vs store shares are consistent and based on accurate POS data.
 
 **Acceptance Criteria:**
 
-**Given** a voucher has a conference cap and gross_total
-**When** redemption is saved
-**Then** conference pays 50% up to cap and store pays 50% up to cap plus 100% over cap
+**Given** a receipt is imported with gross_total and linked to a voucher with a conference cap
+**When** the receipt-voucher link is created
+**Then** the system calculates and stores: conference pays 50% up to cap; store pays 50% up to cap plus 100% over cap
 
-**Given** the gross_total is below cap
+**Given** the gross_total is below the conference cap
 **When** billing is computed
 **Then** both conference and store pay 50% of gross_total
+
+**Given** the gross_total exceeds the conference cap
+**When** billing is computed
+**Then** conference pays 50% of cap; store pays 50% of cap plus 100% of the amount over cap
+
+**Given** a voucher is redeemed but receipt not yet imported
+**When** billing shares are requested
+**Then** they show as "Pending receipt import" or null until receipt is linked
 
 ### Story 5.3: Emergency Overrides with Audit Trail
 

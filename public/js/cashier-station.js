@@ -455,6 +455,7 @@
                 adults: parseInt($('input[name="adults"]', form).val()),
                 children: parseInt($('input[name="children"]', form).val()),
                 conference: 'emergency',
+                voucherType: 'clothing'
             };
 
             // Check for duplicate
@@ -468,7 +469,8 @@
                     firstName: formData.firstName,
                     lastName: formData.lastName,
                     dob: formData.dob,
-                    createdBy: 'Cashier'
+                    createdBy: 'Cashier',
+                    voucherType: 'clothing'
                 }),
                 contentType: 'application/json',
                 success: function (response) {
@@ -543,6 +545,9 @@
         $.ajax({
             url: svdpVouchers.restUrl + 'svdp/v1/override-reasons',
             method: 'GET',
+            headers: {
+                'X-WP-Nonce': svdpVouchers.nonce
+            },
             success: function (reasons) {
                 const select = $('#svdpOverrideReason');
                 select.empty().append('<option value="">Select a reason...</option>');
