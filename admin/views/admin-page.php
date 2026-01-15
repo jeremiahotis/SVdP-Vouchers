@@ -1,20 +1,33 @@
 <div class="wrap">
     <h1><?php echo esc_html(get_admin_page_title()); ?></h1>
-    
+
     <h2 class="nav-tab-wrapper">
-        <a href="?page=svdp-vouchers&tab=analytics" class="nav-tab <?php echo $active_tab === 'analytics' ? 'nav-tab-active' : ''; ?>">
+        <a href="?page=svdp-vouchers&tab=analytics"
+            class="nav-tab <?php echo $active_tab === 'analytics' ? 'nav-tab-active' : ''; ?>">
             Analytics
         </a>
-        <a href="?page=svdp-vouchers&tab=conferences" class="nav-tab <?php echo $active_tab === 'conferences' ? 'nav-tab-active' : ''; ?>">
+        <a href="?page=svdp-vouchers&tab=conferences"
+            class="nav-tab <?php echo $active_tab === 'conferences' ? 'nav-tab-active' : ''; ?>">
             Conferences
         </a>
-        <a href="?page=svdp-vouchers&tab=managers" class="nav-tab <?php echo $active_tab === 'managers' ? 'nav-tab-active' : ''; ?>">
+        <a href="?page=svdp-vouchers&tab=furniture"
+            class="nav-tab <?php echo $active_tab === 'furniture' ? 'nav-tab-active' : ''; ?>">
+            Furniture
+        </a>
+        <a href="?page=svdp-vouchers&tab=household-goods"
+            class="nav-tab <?php echo $active_tab === 'household-goods' ? 'nav-tab-active' : ''; ?>">
+            Household Goods
+        </a>
+        <a href="?page=svdp-vouchers&tab=managers"
+            class="nav-tab <?php echo $active_tab === 'managers' ? 'nav-tab-active' : ''; ?>">
             Managers
         </a>
-        <a href="?page=svdp-vouchers&tab=override-reasons" class="nav-tab <?php echo $active_tab === 'override-reasons' ? 'nav-tab-active' : ''; ?>">
+        <a href="?page=svdp-vouchers&tab=override-reasons"
+            class="nav-tab <?php echo $active_tab === 'override-reasons' ? 'nav-tab-active' : ''; ?>">
             Override Reasons
         </a>
-        <a href="?page=svdp-vouchers&tab=settings" class="nav-tab <?php echo $active_tab === 'settings' ? 'nav-tab-active' : ''; ?>">
+        <a href="?page=svdp-vouchers&tab=settings"
+            class="nav-tab <?php echo $active_tab === 'settings' ? 'nav-tab-active' : ''; ?>">
             Settings
         </a>
     </h2>
@@ -27,6 +40,12 @@
                 break;
             case 'conferences':
                 include 'tab-conferences.php';
+                break;
+            case 'furniture':
+                include 'tab-furniture.php';
+                break;
+            case 'household-goods':
+                include 'tab-household-goods.php';
                 break;
             case 'managers':
                 include 'managers-tab.php';

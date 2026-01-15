@@ -23,6 +23,7 @@ class SVDP_Database {
             adults int(11) NOT NULL DEFAULT 0,
             children int(11) NOT NULL DEFAULT 0,
             conference_id bigint(20) NOT NULL,
+            store_id bigint(20) DEFAULT NULL,
             vincentian_name varchar(200) DEFAULT NULL,
             vincentian_email varchar(200) DEFAULT NULL,
             created_by varchar(50) NOT NULL,
@@ -48,6 +49,7 @@ class SVDP_Database {
             KEY last_name (last_name),
             KEY dob (dob),
             KEY conference_id (conference_id),
+            KEY store_id (store_id),
             KEY status (status),
             KEY voucher_created_date (voucher_created_date),
             KEY coat_issued_date (coat_issued_date)
@@ -61,6 +63,7 @@ class SVDP_Database {
             slug varchar(200) NOT NULL,
             is_emergency tinyint(1) NOT NULL DEFAULT 0,
             organization_type varchar(50) DEFAULT 'conference',
+            woodshop_paused tinyint(1) DEFAULT 0,
             eligibility_days int(11) DEFAULT 90,
             emergency_affects_eligibility tinyint(1) DEFAULT 0,
             regular_items_per_person int(11) DEFAULT 7,
@@ -112,6 +115,7 @@ class SVDP_Database {
     private static function insert_default_conferences() {
         global $wpdb;
         $table = $wpdb->prefix . 'svdp_conferences';
+        $settings_table = $wpdb->prefix . 'svdp_settings';
         
         // Check if conferences already exist
         $count = $wpdb->get_var("SELECT COUNT(*) FROM $table");
@@ -140,6 +144,41 @@ class SVDP_Database {
         
         foreach ($conferences as $conference) {
             $wpdb->insert($table, $conference);
+        }
+
+        // Ensure a default store exists for cashier context.
+        $store_count = (int) $wpdb->get_var("SELECT COUNT(*) FROM $table WHERE organization_type = 'store'");
+        if ($store_count === 0) {
+            $wpdb->insert($table, [
+                'name' => 'SVdP Thrift Store',
+                'slug' => 'svdp-thrift-store',
+                'is_emergency' => 0,
+                'organization_type' => 'store',
+                'woodshop_paused' => 0,
+                'eligibility_days' => 90,
+                'emergency_affects_eligibility' => 0,
+                'regular_items_per_person' => 7,
+                'emergency_items_per_person' => 3,
+                'form_enabled' => 0,
+                'active' => 1,
+                'allowed_voucher_types' => json_encode(['clothing']),
+            ]);
+        }
+
+        // Set default_store_id setting if missing.
+        $default_store_id = $wpdb->get_var("SELECT id FROM $table WHERE organization_type = 'store' ORDER BY id ASC LIMIT 1");
+        if (!empty($default_store_id)) {
+            $exists = (int) $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM $settings_table WHERE setting_key = %s",
+                'default_store_id'
+            ));
+            if ($exists === 0) {
+                $wpdb->insert($settings_table, [
+                    'setting_key' => 'default_store_id',
+                    'setting_value' => (string) $default_store_id,
+                    'setting_type' => 'text',
+                ]);
+            }
         }
     }
 

@@ -119,12 +119,8 @@
         <div class="svdp-override-fields">
             <div class="svdp-form-group">
                 <label for="svdpManagerCode">Manager Code *</label>
-                <input type="password"
-                       id="svdpManagerCode"
-                       placeholder="Enter 6-digit code"
-                       maxlength="6"
-                       pattern="[0-9]{6}"
-                       required>
+                <input type="password" id="svdpManagerCode" placeholder="Enter 6-digit code" maxlength="6"
+                    pattern="[0-9]{6}" required>
                 <small>Enter the manager's 6-digit approval code</small>
             </div>
 
@@ -148,7 +144,8 @@
 <div id="svdpCoatModal" class="svdp-modal">
     <div class="svdp-modal-content">
         <h3>🧥 Issue Winter Coats</h3>
-        <p id="svdpCoatVoucherInfo" style="margin-bottom: 20px; padding: 10px; background: #f0f0f0; border-radius: 4px;"></p>
+        <p id="svdpCoatVoucherInfo"
+            style="margin-bottom: 20px; padding: 10px; background: #f0f0f0; border-radius: 4px;"></p>
 
         <form id="svdpCoatForm">
             <input type="hidden" id="svdpCoatVoucherId" value="">
@@ -165,7 +162,8 @@
                 <small>Maximum: <span id="svdpCoatMaxChildren">0</span> children in household</small>
             </div>
 
-            <div id="svdpCoatTotal" style="margin: 15px 0; padding: 10px; background: #e8f4f8; border-left: 4px solid #006BA8; font-weight: bold;">
+            <div id="svdpCoatTotal"
+                style="margin: 15px 0; padding: 10px; background: #e8f4f8; border-left: 4px solid #006BA8; font-weight: bold;">
                 Total Coats: <span id="svdpCoatTotalCount">0</span>
             </div>
 
@@ -181,34 +179,30 @@
 <div id="svdpRedemptionModal" class="svdp-modal">
     <div class="svdp-modal-content">
         <h3>🎫 Redeem Voucher</h3>
-        <div id="svdpRedemptionVoucherInfo" style="margin-bottom: 20px; padding: 15px; background: #f0f0f0; border-radius: 4px;"></div>
+        <div id="svdpRedemptionVoucherInfo"
+            style="margin-bottom: 20px; padding: 15px; background: #f0f0f0; border-radius: 4px;"></div>
 
         <form id="svdpRedemptionForm">
             <input type="hidden" id="svdpRedemptionVoucherId" value="">
 
-            <div class="svdp-form-group">
-                <label for="svdpItemsAdult">Adult Items Provided *</label>
-                <input type="number" id="svdpItemsAdult" name="itemsAdult" min="0" value="0" required>
-                <small>Maximum: <span id="svdpMaxAdultItems">0</span> items</small>
+
+
+
+
+            <div id="svdpRedemptionError"
+                style="display: none; margin: 10px 0; padding: 10px; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px; color: #721c24;">
             </div>
 
             <div class="svdp-form-group">
-                <label for="svdpItemsChildren">Child Items Provided *</label>
-                <input type="number" id="svdpItemsChildren" name="itemsChildren" min="0" value="0" required>
-                <small>Maximum: <span id="svdpMaxChildItems">0</span> items</small>
+                <label for="svdpReceiptId">Receipt ID *</label>
+                <input type="text" id="svdpReceiptId" name="receiptId" placeholder="Enter POS Receipt #" required>
+                <small>Required for reconciliation</small>
             </div>
-
-            <div id="svdpRedemptionSummary" style="margin: 15px 0; padding: 15px; background: #e8f4f8; border-left: 4px solid #006BA8;">
-                <div style="font-weight: bold; margin-bottom: 8px;">Redemption Summary:</div>
-                <div>Total Items: <span id="svdpTotalItems">0</span> / <span id="svdpMaxTotalItems">0</span></div>
-                <div>Estimated Value: $<span id="svdpEstimatedValue">0.00</span></div>
-            </div>
-
-            <div id="svdpRedemptionError" style="display: none; margin: 10px 0; padding: 10px; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px; color: #721c24;"></div>
 
             <div class="svdp-modal-buttons">
                 <button type="button" id="svdpCancelRedemption" class="svdp-btn svdp-btn-secondary">Cancel</button>
-                <button type="submit" id="svdpConfirmRedemption" class="svdp-btn svdp-btn-primary">Mark as Redeemed</button>
+                <button type="submit" id="svdpConfirmRedemption" class="svdp-btn svdp-btn-primary">Mark as
+                    Redeemed</button>
             </div>
         </form>
     </div>

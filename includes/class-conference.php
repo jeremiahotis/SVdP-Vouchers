@@ -46,7 +46,7 @@ class SVDP_Conference {
     /**
      * Create conference
      */
-    public static function create($name, $slug = '', $is_emergency = 0, $organization_type = 'conference', $eligibility_days = 90, $regular_items = 7) {
+    public static function create($name, $slug = '', $is_emergency = 0, $organization_type = 'conference', $eligibility_days = 90, $regular_items = 7, $woodshop_paused = 0) {
         global $wpdb;
         $table = $wpdb->prefix . 'svdp_conferences';
 
@@ -60,6 +60,7 @@ class SVDP_Conference {
             'slug' => sanitize_title($slug),
             'is_emergency' => intval($is_emergency),
             'organization_type' => sanitize_text_field($organization_type),
+            'woodshop_paused' => intval($woodshop_paused),
             'eligibility_days' => intval($eligibility_days),
             'regular_items_per_person' => intval($regular_items),
             'emergency_items_per_person' => 3, // Default for emergency vouchers
@@ -111,6 +112,10 @@ class SVDP_Conference {
             $update_data['allowed_voucher_types'] = $data['allowed_voucher_types']; // Already JSON
         }
 
+        if (isset($data['woodshop_paused'])) {
+            $update_data['woodshop_paused'] = intval($data['woodshop_paused']);
+        }
+
         if (isset($data['custom_form_text'])) {
             $update_data['custom_form_text'] = sanitize_textarea_field($data['custom_form_text']);
         }
@@ -124,6 +129,28 @@ class SVDP_Conference {
         }
         
         return $wpdb->update($table, $update_data, ['id' => $id]);
+    }
+
+    /**
+     * Get the default store organization ID.
+     */
+    public static function get_default_store_id() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'svdp_conferences';
+
+        $default_store_id = SVDP_Settings::get_setting('default_store_id', '');
+        if (!empty($default_store_id)) {
+            $store = $wpdb->get_var($wpdb->prepare(
+                "SELECT id FROM $table WHERE id = %d AND organization_type = 'store' AND active = 1",
+                $default_store_id
+            ));
+            if (!empty($store)) {
+                return (int) $store;
+            }
+        }
+
+        $fallback = $wpdb->get_var("SELECT id FROM $table WHERE organization_type = 'store' AND active = 1 ORDER BY id ASC LIMIT 1");
+        return !empty($fallback) ? (int) $fallback : null;
     }
     
     /**

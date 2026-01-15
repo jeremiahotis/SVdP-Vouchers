@@ -1,0 +1,8 @@
+project_structure: "monolith"
+project_parts_metadata:
+  - part_id: "plugin"
+    root_path: "/Users/jeremiahotis/Local Sites/voucher-system/app/public/wp-content/plugins/SVdP-Vouchers"
+    project_type_id: "backend"
+    display_name: "WordPress Plugin"
+    primary_language: "PHP"
+    notes: "WordPress plugin with admin/public assets"

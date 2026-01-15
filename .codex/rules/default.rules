@@ -1,0 +1,5 @@
+prefix_rule(pattern=["curl", "-k", "-L", "https://duckduckgo.com/html/?q=wordpress+plugin+boilerplate+starter+template"], decision="allow")
+prefix_rule(pattern=["curl", "-L", "https://api.github.com/repos/DevinVinson/WordPress-Plugin-Boilerplate"], decision="allow")
+prefix_rule(pattern=["curl", "-L", "https://developer.wordpress.org/cli/commands/scaffold/plugin/"], decision="allow")
+prefix_rule(pattern=["curl", "-k", "-s", "https://api.wordpress.org/core/version-check/1.7/"], decision="allow")
+prefix_rule(pattern=["curl", "-L", "https://api.github.com/repos/redis/redis/releases/latest"], decision="allow")

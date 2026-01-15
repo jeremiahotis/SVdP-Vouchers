@@ -2,13 +2,15 @@
 /**
  * Admin functionality
  */
-class SVDP_Admin {
-    
-    public function __construct() {
+class SVDP_Admin
+{
+
+    public function __construct()
+    {
         add_action('admin_menu', [$this, 'add_admin_menu']);
         add_action('admin_init', [$this, 'register_settings']);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_admin_assets']);
-        
+
         // AJAX handlers
         add_action('wp_ajax_svdp_add_conference', [$this, 'ajax_add_conference']);
         add_action('wp_ajax_svdp_delete_conference', [$this, 'ajax_delete_conference']);
@@ -34,12 +36,18 @@ class SVDP_Admin {
 
         // Export handler
         add_action('admin_post_svdp_export_vouchers', [$this, 'export_vouchers']);
+
+        // Catalog AJAX
+        add_action('wp_ajax_svdp_add_catalog_item', [$this, 'ajax_add_catalog_item']);
+        add_action('wp_ajax_svdp_update_catalog_item', [$this, 'ajax_update_catalog_item']);
+        add_action('wp_ajax_svdp_delete_catalog_item', [$this, 'ajax_delete_catalog_item']);
     }
-    
+
     /**
      * Add admin menu
      */
-    public function add_admin_menu() {
+    public function add_admin_menu()
+    {
         add_menu_page(
             __('SVdP Vouchers', 'svdp-vouchers'),
             __('SVdP Vouchers', 'svdp-vouchers'),
@@ -50,18 +58,20 @@ class SVDP_Admin {
             30
         );
     }
-    
+
     /**
      * Register settings
      */
-    public function register_settings() {
+    public function register_settings()
+    {
         // Settings are now managed via SVDP_Settings class and database table
     }
-    
+
     /**
      * Enqueue admin assets
      */
-    public function enqueue_admin_assets($hook) {
+    public function enqueue_admin_assets($hook)
+    {
         if ($hook !== 'toplevel_page_svdp-vouchers') {
             return;
         }
@@ -76,19 +86,21 @@ class SVDP_Admin {
             'nonce' => wp_create_nonce('svdp_admin_nonce'),
         ]);
     }
-    
+
     /**
      * Render admin page
      */
-    public function render_admin_page() {
+    public function render_admin_page()
+    {
         $active_tab = isset($_GET['tab']) ? $_GET['tab'] : 'conferences';
         include SVDP_VOUCHERS_PLUGIN_DIR . 'admin/views/admin-page.php';
     }
-    
+
     /**
      * AJAX: Add conference
      */
-    public function ajax_add_conference() {
+    public function ajax_add_conference()
+    {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -100,12 +112,13 @@ class SVDP_Admin {
         $org_type = sanitize_text_field($_POST['organization_type'] ?? 'conference');
         $eligibility_days = intval($_POST['eligibility_days'] ?? 90);
         $regular_items = intval($_POST['regular_items'] ?? 7);
+        $woodshop_paused = intval($_POST['woodshop_paused'] ?? 0);
 
         if (empty($name)) {
             wp_send_json_error('Organization name is required');
         }
 
-        $id = SVDP_Conference::create($name, $slug, 0, $org_type, $eligibility_days, $regular_items);
+        $id = SVDP_Conference::create($name, $slug, 0, $org_type, $eligibility_days, $regular_items, $woodshop_paused);
 
         if ($id) {
             wp_send_json_success([
@@ -116,36 +129,38 @@ class SVDP_Admin {
             wp_send_json_error('Failed to add conference');
         }
     }
-    
+
     /**
      * AJAX: Delete conference
      */
-    public function ajax_delete_conference() {
+    public function ajax_delete_conference()
+    {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
-        
+
         if (!current_user_can('manage_options')) {
             wp_send_json_error('Permission denied');
         }
-        
+
         $id = intval($_POST['id']);
-        
+
         if (SVDP_Conference::delete($id)) {
             wp_send_json_success('Conference deleted successfully');
         } else {
             wp_send_json_error('Failed to delete conference');
         }
     }
-    
+
     /**
      * AJAX: Update conference
      */
-    public function ajax_update_conference() {
+    public function ajax_update_conference()
+    {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
-        
+
         if (!current_user_can('manage_options')) {
             wp_send_json_error('Permission denied');
         }
-        
+
         $id = intval($_POST['id']);
         $data = [
             'name' => sanitize_text_field($_POST['name']),
@@ -153,8 +168,10 @@ class SVDP_Admin {
             'notification_email' => sanitize_email($_POST['notification_email']),
             'eligibility_days' => intval($_POST['eligibility_days']),
             'items_per_person' => intval($_POST['items_per_person']),
+            'active' => isset($_POST['active']) ? intval($_POST['active']) : 1,
+            'woodshop_paused' => isset($_POST['woodshop_paused']) ? intval($_POST['woodshop_paused']) : 0,
         ];
-        
+
         if (SVDP_Conference::update($id, $data)) {
             wp_send_json_success('Conference updated successfully');
         } else {
@@ -165,7 +182,8 @@ class SVDP_Admin {
     /**
      * Save plugin settings
      */
-    public function ajax_save_settings() {
+    public function ajax_save_settings()
+    {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -199,7 +217,8 @@ class SVDP_Admin {
     /**
      * AJAX: Update organization voucher types
      */
-    public function ajax_update_voucher_types() {
+    public function ajax_update_voucher_types()
+    {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -207,9 +226,23 @@ class SVDP_Admin {
         }
 
         $id = intval($_POST['id']);
-        $voucher_types = $_POST['voucher_types']; // Already JSON string
+        $voucher_types_raw = wp_unslash($_POST['voucher_types'] ?? '[]');
+        $decoded = json_decode($voucher_types_raw, true);
+        if (!is_array($decoded)) {
+            wp_send_json_error('Invalid voucher types payload');
+        }
 
-        if (SVDP_Conference::update($id, ['allowed_voucher_types' => $voucher_types])) {
+        $sanitized = [];
+        foreach ($decoded as $type) {
+            $type = sanitize_key($type);
+            if (!empty($type)) {
+                $sanitized[] = $type;
+            }
+        }
+        $voucher_types = wp_json_encode(array_values($sanitized));
+
+        $result = SVDP_Conference::update($id, ['allowed_voucher_types' => $voucher_types]);
+        if ($result !== false) {
             wp_send_json_success('Voucher types updated successfully');
         } else {
             wp_send_json_error('Failed to update voucher types');
@@ -219,7 +252,8 @@ class SVDP_Admin {
     /**
      * AJAX: Get organization custom text
      */
-    public function ajax_get_custom_text() {
+    public function ajax_get_custom_text()
+    {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -242,7 +276,8 @@ class SVDP_Admin {
     /**
      * AJAX: Save organization custom text
      */
-    public function ajax_save_custom_text() {
+    public function ajax_save_custom_text()
+    {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -265,7 +300,8 @@ class SVDP_Admin {
     /**
      * AJAX: Apply analytics filters and return filtered data
      */
-    public function ajax_apply_analytics_filters() {
+    public function ajax_apply_analytics_filters()
+    {
         check_ajax_referer('svdp_analytics_filters', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -368,17 +404,18 @@ class SVDP_Admin {
     /**
      * Export vouchers to CSV
      */
-    public function export_vouchers() {
+    public function export_vouchers()
+    {
         check_admin_referer('svdp_export', 'svdp_export_nonce');
-        
+
         if (!current_user_can('manage_options')) {
             wp_die('Permission denied');
         }
-        
+
         global $wpdb;
         $vouchers_table = $wpdb->prefix . 'svdp_vouchers';
         $conferences_table = $wpdb->prefix . 'svdp_conferences';
-        
+
         // Build filters from analytics filters (if set) or legacy date range
         $where_clauses = ['1=1'];
 
@@ -423,7 +460,7 @@ class SVDP_Admin {
         }
 
         $where_sql = implode(' AND ', $where_clauses);
-        
+
         // Get vouchers
         $vouchers = $wpdb->get_results("
             SELECT
@@ -461,17 +498,17 @@ class SVDP_Admin {
             WHERE {$where_sql}
             ORDER BY v.voucher_created_date DESC
         ");
-        
+
         // Set headers for CSV download
         header('Content-Type: text/csv; charset=utf-8');
         header('Content-Disposition: attachment; filename=svdp-vouchers-' . date('Y-m-d') . '.csv');
-        
+
         // Create output stream
         $output = fopen('php://output', 'w');
-        
+
         // Add BOM for Excel UTF-8 support
-        fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
-        
+        fprintf($output, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
         // Add headers
         fputcsv($output, [
             'ID',
@@ -502,7 +539,7 @@ class SVDP_Admin {
             'Override Reason',
             'Created At'
         ]);
-        
+
         // Add data
         foreach ($vouchers as $voucher) {
             fputcsv($output, [
@@ -535,7 +572,7 @@ class SVDP_Admin {
                 $voucher->created_at
             ]);
         }
-        
+
         fclose($output);
         exit;
     }
@@ -543,7 +580,8 @@ class SVDP_Admin {
     /**
      * AJAX: Add manager
      */
-    public function ajax_add_manager() {
+    public function ajax_add_manager()
+    {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -568,7 +606,8 @@ class SVDP_Admin {
     /**
      * AJAX: Get all managers
      */
-    public function ajax_get_managers() {
+    public function ajax_get_managers()
+    {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -582,7 +621,8 @@ class SVDP_Admin {
     /**
      * AJAX: Deactivate manager
      */
-    public function ajax_deactivate_manager() {
+    public function ajax_deactivate_manager()
+    {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -602,7 +642,8 @@ class SVDP_Admin {
     /**
      * AJAX: Regenerate manager code
      */
-    public function ajax_regenerate_code() {
+    public function ajax_regenerate_code()
+    {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -622,7 +663,8 @@ class SVDP_Admin {
     /**
      * AJAX: Add override reason
      */
-    public function ajax_add_reason() {
+    public function ajax_add_reason()
+    {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -647,7 +689,8 @@ class SVDP_Admin {
     /**
      * AJAX: Get all reasons
      */
-    public function ajax_get_reasons() {
+    public function ajax_get_reasons()
+    {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -661,7 +704,8 @@ class SVDP_Admin {
     /**
      * AJAX: Update reason
      */
-    public function ajax_update_reason() {
+    public function ajax_update_reason()
+    {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -683,7 +727,8 @@ class SVDP_Admin {
     /**
      * AJAX: Delete reason
      */
-    public function ajax_delete_reason() {
+    public function ajax_delete_reason()
+    {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -703,7 +748,8 @@ class SVDP_Admin {
     /**
      * AJAX: Reorder reasons
      */
-    public function ajax_reorder_reasons() {
+    public function ajax_reorder_reasons()
+    {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -722,6 +768,111 @@ class SVDP_Admin {
             wp_send_json_success('Order updated');
         } else {
             wp_send_json_error('Failed to update order');
+        }
+    }
+
+    /**
+     * AJAX: Add catalog item
+     */
+    public function ajax_add_catalog_item()
+    {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Permission denied');
+        }
+
+        $voucher_type = sanitize_text_field($_POST['voucher_type']);
+        $category = sanitize_text_field($_POST['category']);
+        $name = sanitize_text_field($_POST['name']);
+        $min_price = floatval($_POST['min_price']);
+        $max_price = floatval($_POST['max_price']);
+        $is_woodshop = intval($_POST['is_woodshop'] ?? 0);
+        $availability = sanitize_key($_POST['availability_status'] ?? 'available');
+        $sort_order = intval($_POST['sort_order'] ?? 0);
+
+        if (empty($name) || empty($voucher_type) || empty($category)) {
+            wp_send_json_error('Required fields missing');
+        }
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'svdp_catalog_items';
+
+        $result = $wpdb->insert($table, [
+            'voucher_type' => $voucher_type,
+            'category' => $category,
+            'name' => $name,
+            'min_price' => $min_price,
+            'max_price' => $max_price,
+            'is_woodshop' => $is_woodshop,
+            'availability_status' => $availability,
+            'sort_order' => $sort_order,
+            'active' => 1
+        ]);
+
+        if ($result) {
+            wp_send_json_success('Item added successfully');
+        } else {
+            wp_send_json_error('Failed to add item');
+        }
+    }
+
+    /**
+     * AJAX: Update catalog item
+     */
+    public function ajax_update_catalog_item()
+    {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Permission denied');
+        }
+
+        $id = intval($_POST['id']);
+        $data = [
+            'name' => sanitize_text_field($_POST['name']),
+            'category' => sanitize_text_field($_POST['category']),
+            'min_price' => floatval($_POST['min_price']),
+            'max_price' => floatval($_POST['max_price']),
+            'is_woodshop' => intval($_POST['is_woodshop']),
+            'availability_status' => sanitize_key($_POST['availability_status']),
+            'sort_order' => intval($_POST['sort_order']),
+            'active' => intval($_POST['active'])
+        ];
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'svdp_catalog_items';
+
+        $result = $wpdb->update($table, $data, ['id' => $id]);
+
+        if ($result !== false) {
+            wp_send_json_success('Item updated');
+        } else {
+            wp_send_json_error('Failed to update item');
+        }
+    }
+
+    /**
+     * AJAX: Delete catalog item
+     */
+    public function ajax_delete_catalog_item()
+    {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Permission denied');
+        }
+
+        $id = intval($_POST['id']);
+        global $wpdb;
+        $table = $wpdb->prefix . 'svdp_catalog_items';
+
+        $result = $wpdb->delete($table, ['id' => $id]);
+
+        if ($result) {
+            wp_send_json_success('Item deleted');
+        } else {
+            wp_send_json_error('Failed to delete item');
         }
     }
 }

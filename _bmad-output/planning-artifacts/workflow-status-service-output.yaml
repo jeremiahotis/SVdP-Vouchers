@@ -1,0 +1,7 @@
+status_exists: true
+project_name: "SVdP Vouchers"
+project_type: "wordpress-plugin"
+project_level: 1
+field_type: "brownfield"
+workflow_path: "_bmad/bmm/workflows/workflow-status/paths/method-brownfield.yaml"
+status_file_path: "_bmad-output/planning-artifacts/bmm-workflow-status.yaml"

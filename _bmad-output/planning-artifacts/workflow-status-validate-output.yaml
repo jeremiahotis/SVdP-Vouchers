@@ -1,0 +1,9 @@
+status_exists: true
+project_level: 1
+project_type: "wordpress-plugin"
+field_type: "brownfield"
+next_workflow: "document-project"
+should_proceed: true
+warning: ""
+suggestion: "Proceeding with planned next step"
+status_file_path: "_bmad-output/planning-artifacts/bmm-workflow-status.yaml"
