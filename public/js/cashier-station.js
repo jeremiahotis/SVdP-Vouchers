@@ -842,14 +842,15 @@
         $('#svdpMaxTotalItems').text(maxTotalItems);
 
         // Reset form
-        $('#svdpItemsAdult').attr('max', maxAdultItems).val(0);
-        $('#svdpItemsChildren').attr('max', maxChildItems).val(0);
+        $('#svdpRedemptionForm')[0].reset();
 
         // Reset error
         $('#svdpRedemptionError').hide();
 
         updateRedemptionSummary();
-        $('#svdpRedemptionModal').fadeIn(200);
+        $('#svdpRedemptionModal').fadeIn(200, function () {
+            $('#svdpReceiptId').focus();
+        });
     }
 
     /**
