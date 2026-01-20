@@ -11,7 +11,7 @@ The plugin exposes WordPress REST API endpoints under `/wp-json/svdp/v1/` and ad
 - Response: Array of voucher objects with computed fields (status, coat eligibility).
 
 ### POST /wp-json/svdp/v1/vouchers/check-duplicate
-- Auth: Public (nonce required).
+- Auth: Public (no auth/nonce).
 - Purpose: Duplicate check for voucher requests.
 - Body:
   - firstName, lastName, dob, voucherType, createdBy
@@ -21,7 +21,7 @@ The plugin exposes WordPress REST API endpoints under `/wp-json/svdp/v1/` and ad
   - voucherCreatedDate, nextEligibleDate, conference, vincentianName (if found)
 
 ### POST /wp-json/svdp/v1/vouchers/create
-- Auth: Public (nonce required).
+- Auth: Public (no auth/nonce).
 - Purpose: Create new voucher request.
 - Body:
   - firstName, lastName, dob, adults, children, conference, voucherType, vincentianName, vincentianEmail
@@ -29,7 +29,7 @@ The plugin exposes WordPress REST API endpoints under `/wp-json/svdp/v1/` and ad
   - success details and nextEligibleDate, coatEligibleAfter (if applicable)
 
 ### POST /wp-json/svdp/v1/vouchers/create-denied
-- Auth: Public (nonce required).
+- Auth: Public (no auth/nonce).
 - Purpose: Log denied voucher attempt.
 - Body: voucher identity and denial_reason.
 
@@ -48,7 +48,7 @@ The plugin exposes WordPress REST API endpoints under `/wp-json/svdp/v1/` and ad
   - coatStatus, coatAdultsIssued, coatChildrenIssued
 
 ### GET /wp-json/svdp/v1/conferences
-- Auth: Public (nonce required).
+- Auth: Public (no auth/nonce).
 - Purpose: List active conferences/organizations.
 
 ### POST /wp-json/svdp/v1/auth/refresh-nonce
@@ -87,5 +87,6 @@ All actions require `svdp_admin_nonce` and `manage_options` capability.
 - svdp_reorder_reasons
 
 ## Notes
-- All REST endpoints use `X-WP-Nonce` header for auth where applicable.
+- Public voucher-request endpoints are rate-limited (20/5min, 100/day per IP) and validated server-side.
+- Authenticated endpoints use `X-WP-Nonce` header for auth where applicable.
 - Cashier station uses heartbeat + nonce refresh to keep sessions alive.

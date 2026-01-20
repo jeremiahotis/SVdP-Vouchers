@@ -33,6 +33,7 @@ require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-audit.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-import.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-reconciliation.php';
 require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-rest-errors.php';
+require_once SVDP_VOUCHERS_PLUGIN_DIR . 'includes/class-rate-limits.php';
 
 /**
  * Main plugin class
@@ -240,11 +241,11 @@ class SVDP_Vouchers_Plugin
      */
     public function check_public_access($request)
     {
-        // Cookie was already validated by handle_rest_authentication
-        // Just verify we have an authenticated user
-        if (!is_user_logged_in()) {
-            return SVDP_REST_Errors::forbidden('Authentication required.');
+        $rate_limit = SVDP_Rate_Limits::check_public_rate_limit();
+        if (is_wp_error($rate_limit)) {
+            return $rate_limit;
         }
+
         return true;
     }
 
@@ -331,19 +332,37 @@ class SVDP_Vouchers_Plugin
             return $result; // Let WordPress handle other routes normally
         }
 
-        // For SVDP routes, validate the cookie manually
-        // This bypasses the nonce check but still requires valid login
-        $user_id = wp_validate_auth_cookie('', 'logged_in');
-
-        if ($user_id) {
-            // Valid cookie - set the current user
-            wp_set_current_user($user_id);
-            return true; // Authentication successful
+        if ($this->is_public_rest_route($rest_route) && !is_user_logged_in()) {
+            unset($_SERVER['HTTP_X_WP_NONCE']);
+            if (isset($_REQUEST['_wpnonce'])) {
+                unset($_REQUEST['_wpnonce']);
+            }
+            return null;
         }
 
-        // No valid cookie - let WordPress continue with normal auth
-        // (which will fail, returning 401/403 as expected)
+        // Non-public SVDP routes should follow WordPress default auth/nonce flow.
         return $result;
+    }
+
+    /**
+     * Check if REST route is publicly accessible.
+     */
+    private function is_public_rest_route($rest_route)
+    {
+        $public_routes = [
+            '/svdp/v1/vouchers/check-duplicate',
+            '/svdp/v1/vouchers/create',
+            '/svdp/v1/vouchers/create-denied',
+            '/svdp/v1/conferences',
+        ];
+
+        foreach ($public_routes as $public_route) {
+            if (strpos($rest_route, $public_route) === 0) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -355,9 +374,11 @@ class SVDP_Vouchers_Plugin
             return false;
         }
 
-        $user = wp_get_current_user();
-        return in_array('svdp_cashier', $user->roles) ||
-            in_array('administrator', $user->roles);
+        if (current_user_can('manage_options')) {
+            return true;
+        }
+
+        return current_user_can('access_cashier_station');
     }
 
     /**
