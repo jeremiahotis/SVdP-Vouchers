@@ -82,7 +82,14 @@ class SVDP_Admin
             return;
         }
 
-        wp_enqueue_style('svdp-vouchers-admin', SVDP_VOUCHERS_PLUGIN_URL . 'admin/css/admin.css', [], SVDP_VOUCHERS_VERSION);
+        // Enqueue Design System Tokens (Global)
+        wp_enqueue_style('shyft-variables', SVDP_VOUCHERS_PLUGIN_URL . 'public/css/shyft-variables.css', [], SVDP_VOUCHERS_VERSION);
+
+        // Print Receipt Assets
+        wp_enqueue_style('svdp-print-receipt', SVDP_VOUCHERS_PLUGIN_URL . 'public/css/svdp-print-receipt.css', [], SVDP_VOUCHERS_VERSION);
+        wp_enqueue_script('svdp-print-receipt', SVDP_VOUCHERS_PLUGIN_URL . 'public/js/svdp-print-receipt.js', ['jquery'], SVDP_VOUCHERS_VERSION, true);
+
+        wp_enqueue_style('svdp-vouchers-admin', SVDP_VOUCHERS_PLUGIN_URL . 'admin/css/admin.css', ['shyft-variables'], SVDP_VOUCHERS_VERSION);
         wp_enqueue_script('svdp-vouchers-admin', SVDP_VOUCHERS_PLUGIN_URL . 'admin/js/admin.js', ['jquery'], SVDP_VOUCHERS_VERSION, true);
         wp_enqueue_script('svdp-managers', SVDP_VOUCHERS_PLUGIN_URL . 'admin/js/managers.js', ['jquery'], SVDP_VOUCHERS_VERSION, true);
         wp_enqueue_script('svdp-override-reasons', SVDP_VOUCHERS_PLUGIN_URL . 'admin/js/override-reasons.js', ['jquery', 'jquery-ui-sortable'], SVDP_VOUCHERS_VERSION, true);
@@ -121,12 +128,13 @@ class SVDP_Admin
         $eligibility_days = intval($_POST['eligibility_days'] ?? 90);
         $regular_items = intval($_POST['regular_items'] ?? 7);
         $woodshop_paused = intval($_POST['woodshop_paused'] ?? 0);
+        $enable_printable_voucher = intval($_POST['enable_printable_voucher'] ?? 0);
 
         if (empty($name)) {
             wp_send_json_error('Organization name is required');
         }
 
-        $id = SVDP_Conference::create($name, $slug, 0, $org_type, $eligibility_days, $regular_items, $woodshop_paused);
+        $id = SVDP_Conference::create($name, $slug, 0, $org_type, $eligibility_days, $regular_items, $woodshop_paused, $enable_printable_voucher);
 
         if ($id) {
             wp_send_json_success([
@@ -178,6 +186,7 @@ class SVDP_Admin
             'items_per_person' => intval($_POST['items_per_person']),
             'active' => isset($_POST['active']) ? intval($_POST['active']) : 1,
             'woodshop_paused' => isset($_POST['woodshop_paused']) ? intval($_POST['woodshop_paused']) : 0,
+            'enable_printable_voucher' => isset($_POST['enable_printable_voucher']) ? intval($_POST['enable_printable_voucher']) : 0,
         ];
 
         if (SVDP_Conference::update($id, $data)) {

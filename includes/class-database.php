@@ -2,17 +2,19 @@
 /**
  * Database setup and schema
  */
-class SVDP_Database {
-    
+class SVDP_Database
+{
+
     /**
      * Create database tables
      */
-    public static function create_tables() {
+    public static function create_tables()
+    {
         global $wpdb;
         $charset_collate = $wpdb->get_charset_collate();
-    
+
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-    
+
         // Vouchers table
         $vouchers_table = $wpdb->prefix . 'svdp_vouchers';
         $vouchers_sql = "CREATE TABLE $vouchers_table (
@@ -54,7 +56,7 @@ class SVDP_Database {
             KEY voucher_created_date (voucher_created_date),
             KEY coat_issued_date (coat_issued_date)
         ) $charset_collate;";
-        
+
         // Conferences table
         $conferences_table = $wpdb->prefix . 'svdp_conferences';
         $conferences_sql = "CREATE TABLE $conferences_table (
@@ -64,6 +66,7 @@ class SVDP_Database {
             is_emergency tinyint(1) NOT NULL DEFAULT 0,
             organization_type varchar(50) DEFAULT 'conference',
             woodshop_paused tinyint(1) DEFAULT 0,
+            enable_printable_voucher tinyint(1) DEFAULT 0,
             eligibility_days int(11) DEFAULT 90,
             emergency_affects_eligibility tinyint(1) DEFAULT 0,
             regular_items_per_person int(11) DEFAULT 7,
@@ -81,7 +84,7 @@ class SVDP_Database {
             KEY active (active),
             KEY organization_type (organization_type)
         ) $charset_collate;";
-        
+
         // Settings table
         $settings_table = $wpdb->prefix . 'svdp_settings';
         $settings_sql = "CREATE TABLE $settings_table (
@@ -108,21 +111,22 @@ class SVDP_Database {
         self::insert_default_conferences();
         self::insert_default_settings();
     }
-    
+
     /**
      * Insert default conferences
      */
-    private static function insert_default_conferences() {
+    private static function insert_default_conferences()
+    {
         global $wpdb;
         $table = $wpdb->prefix . 'svdp_conferences';
         $settings_table = $wpdb->prefix . 'svdp_settings';
-        
+
         // Check if conferences already exist
         $count = $wpdb->get_var("SELECT COUNT(*) FROM $table");
         if ($count > 0) {
             return;
         }
-        
+
         $conferences = [
             ['name' => 'Emergency', 'slug' => 'emergency', 'is_emergency' => 1],
             ['name' => 'Cathedral of the Immaculate Conception', 'slug' => 'cathedral-immaculate-conception', 'is_emergency' => 0],
@@ -141,7 +145,7 @@ class SVDP_Database {
             ['name' => 'St Therese', 'slug' => 'st-therese', 'is_emergency' => 0],
             ['name' => 'St Vincent de Paul', 'slug' => 'st-vincent-de-paul', 'is_emergency' => 0],
         ];
-        
+
         foreach ($conferences as $conference) {
             $wpdb->insert($table, $conference);
         }
@@ -185,7 +189,8 @@ class SVDP_Database {
     /**
      * Insert default settings
      */
-    private static function insert_default_settings() {
+    private static function insert_default_settings()
+    {
         global $wpdb;
         $table = $wpdb->prefix . 'svdp_settings';
 
@@ -211,7 +216,8 @@ class SVDP_Database {
     /**
      * Migrate database to version 2 (add new columns for partner support & item-based model)
      */
-    public static function migrate_to_v2() {
+    public static function migrate_to_v2()
+    {
         global $wpdb;
 
         // Check if migration is needed
@@ -257,7 +263,8 @@ class SVDP_Database {
     /**
      * Create managers table for override system
      */
-    public static function create_managers_table() {
+    public static function create_managers_table()
+    {
         global $wpdb;
         $table = $wpdb->prefix . 'svdp_managers';
         $charset_collate = $wpdb->get_charset_collate();
@@ -279,7 +286,8 @@ class SVDP_Database {
     /**
      * Create override reasons table
      */
-    public static function create_override_reasons_table() {
+    public static function create_override_reasons_table()
+    {
         global $wpdb;
         $table = $wpdb->prefix . 'svdp_override_reasons';
         $charset_collate = $wpdb->get_charset_collate();
@@ -303,7 +311,8 @@ class SVDP_Database {
     /**
      * Insert default override reasons
      */
-    private static function insert_default_reasons() {
+    private static function insert_default_reasons()
+    {
         global $wpdb;
         $table = $wpdb->prefix . 'svdp_override_reasons';
 
@@ -333,7 +342,8 @@ class SVDP_Database {
     /**
      * Add manager_id and reason_id columns to vouchers table
      */
-    public static function add_override_columns() {
+    public static function add_override_columns()
+    {
         global $wpdb;
         $table = $wpdb->prefix . 'svdp_vouchers';
 
@@ -357,7 +367,8 @@ class SVDP_Database {
      * Migrations live in /db/migrations and are executed in numeric order.
      * Each migration file must return a callable (closure) that performs schema changes/backfills.
      */
-    public static function maybe_run_migrations() {
+    public static function maybe_run_migrations()
+    {
         // Only run in wp-admin; avoid frontend cost and avoid running for anonymous visitors.
         if (!is_admin()) {
             return;
@@ -379,7 +390,8 @@ class SVDP_Database {
     /**
      * Execute pending migrations based on the stored schema version.
      */
-    public static function run_migrations() {
+    public static function run_migrations()
+    {
         global $wpdb;
 
         $migrations_dir = trailingslashit(SVDP_VOUCHERS_PLUGIN_DIR) . 'db/migrations';
@@ -400,7 +412,7 @@ class SVDP_Database {
         }
 
         // Sort by numeric prefix (v####)
-        usort($files, function($a, $b) {
+        usort($files, function ($a, $b) {
             $va = (int) preg_replace('/^v(\d{4}).*$/', '$1', basename($a));
             $vb = (int) preg_replace('/^v(\d{4}).*$/', '$1', basename($b));
             return $va <=> $vb;

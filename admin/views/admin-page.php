@@ -10,6 +10,10 @@
             class="nav-tab <?php echo $active_tab === 'conferences' ? 'nav-tab-active' : ''; ?>">
             Conferences
         </a>
+        <a href="?page=svdp-vouchers&tab=vouchers"
+            class="nav-tab <?php echo $active_tab === 'vouchers' ? 'nav-tab-active' : ''; ?>">
+            Vouchers
+        </a>
         <a href="?page=svdp-vouchers&tab=furniture"
             class="nav-tab <?php echo $active_tab === 'furniture' ? 'nav-tab-active' : ''; ?>">
             Furniture
@@ -56,6 +60,9 @@
                 break;
             case 'conferences':
                 include 'tab-conferences.php';
+                break;
+            case 'vouchers':
+                include 'tab-vouchers.php';
                 break;
             case 'furniture':
                 include 'tab-furniture.php';

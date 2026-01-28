@@ -54,6 +54,7 @@
         $.ajax({
             url: svdpVouchers.restUrl + 'svdp/v1/vouchers',
             method: 'GET',
+            cache: false, // Prevent caching
             headers: {
                 'X-WP-Nonce': svdpVouchers.nonce
             },
@@ -70,10 +71,10 @@
                         loadVouchers(silent);
                     }, function () {
                         // Nonce refresh failed - show error
-                        handleLoadError(xhr);
+                        handleLoadError(xhr, silent);
                     });
                 } else {
-                    handleLoadError(xhr);
+                    handleLoadError(xhr, silent);
                 }
             }
         });
@@ -82,10 +83,18 @@
     /**
      * Handle errors when loading vouchers
      */
-    function handleLoadError(xhr) {
+    function handleLoadError(xhr, silent = false) {
+        // If silent refresh (auto-refresh), do not wipe out the UI with an error message.
+        // Just log it and maybe show a small toast if critical, but mostly ignore to keep UI stable.
+        if (silent) {
+            console.warn('Silent refresh failed:', xhr.status, xhr.statusText);
+            $('#svdpLoadingState').hide();
+            return;
+        }
+
         let errorMsg = '';
 
-        if (xhr.status === 401 || xhr.status === 403 || xhr.status === 0) {
+        if (xhr.status === 401 || xhr.status === 403) {
             // Authentication expired - STOP auto-refresh
             autoRefreshEnabled = false;
             errorMsg = '<div class="svdp-error-message">';
@@ -94,7 +103,7 @@
             errorMsg += '<button onclick="location.reload()" class="svdp-btn svdp-btn-primary">Refresh Page</button>';
             errorMsg += '</div>';
         } else {
-            // Temporary error - KEEP auto-refresh running
+            // Temporary error (including status 0/Network error) - KEEP auto-refresh running
             errorMsg = '<div class="svdp-error-message warning">';
             errorMsg += '<h3>⚠️ Temporary Error</h3>';
             errorMsg += '<p>Could not load vouchers (Status: ' + xhr.status + '). Will retry in 30 seconds...</p>';
@@ -262,12 +271,7 @@
                 card += '<span class="svdp-detail-value">' + totalRedeemed + ' (' + (voucher.items_adult_redeemed || 0) + ' adult, ' + (voucher.items_children_redeemed || 0) + ' child)</span>';
                 card += '</div>';
             }
-            if (voucher.redemption_total_value) {
-                card += '<div class="svdp-detail-item">';
-                card += '<span class="svdp-detail-label">Redemption Value</span>';
-                card += '<span class="svdp-detail-value">$' + parseFloat(voucher.redemption_total_value).toFixed(2) + '</span>';
-                card += '</div>';
-            }
+            // Dollar Value REMOVED per user request
         }
 
         card += '</div>'; // End card details
@@ -908,14 +912,29 @@
                 closeRedemptionModal();
                 showMessage('success',
                     '✅ Voucher redeemed successfully! ' +
-                    'Receipt: ' + receiptId + ', Value: $' + response.redemption_value,
+                    'Receipt: ' + receiptId,
                     messageDiv
                 );
-                loadVouchers(true); // Silent reload
 
-                setTimeout(function () {
-                    messageDiv.fadeOut();
-                }, 5000);
+                // Optimistic Update: Update local state immediately to prevent flicker
+                const voucherIndex = allVouchers.findIndex(v => v.id == voucherId);
+                if (voucherIndex > -1) {
+                    allVouchers[voucherIndex].status = 'Redeemed';
+                    allVouchers[voucherIndex].redeemed_date = new Date().toISOString().split('T')[0]; // Today
+                    allVouchers[voucherIndex].receipt_id = receiptId;
+                    // Update item redemption counts if returned, otherwise assume full
+                    if (response.items_adult_redeemed !== undefined) {
+                        allVouchers[voucherIndex].items_adult_redeemed = response.items_adult_redeemed;
+                        allVouchers[voucherIndex].items_children_redeemed = response.items_children_redeemed;
+                    }
+
+                    filterAndRenderVouchers(); // Re-render immediately
+                }
+
+                // Background sync
+                setTimeout(() => {
+                    loadVouchers(true);
+                }, 500); // Small delay to let DB settle
             },
             error: function (xhr) {
                 if (xhr.status === 403) {
@@ -958,8 +977,13 @@
             data: JSON.stringify(formData),
             contentType: 'application/json',
             success: function (response) {
+                // Calculate items based on response or form data
+                const itemsAdult = response.computedTests ? response.computedTests.itemsAdult : (formData.adults * 3);
+                const itemsChildren = response.computedTests ? response.computedTests.itemsChildren : (formData.children * 3);
+
                 messageDiv
-                    .html('✅ Emergency voucher created successfully!')
+                    .html('✅ Emergency voucher created successfully!' +
+                        '<br>Allowed Items: <strong>' + itemsAdult + '</strong> (Adults), <strong>' + itemsChildren + '</strong> (Children)')
                     .removeClass('error')
                     .addClass('success')
                     .fadeIn();

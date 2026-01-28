@@ -601,7 +601,91 @@ class SVDP_Voucher
             'voucher_id' => $voucher_id,
             'nextEligibleDate' => $next_eligible->format('F j, Y'),
             'coatEligibleAfter' => $coat_eligible_after,
+            'conferenceName' => $conference_obj->name,
+            'vincentianName' => $vincentian_name,
+            'enablePrintableVoucher' => (bool) ($conference_obj->enable_printable_voucher ?? 0),
+            'storeHours' => SVDP_Settings::get_setting('store_hours', ''),
+            'storeAddress' => SVDP_Settings::get_setting('store_address', '1600 S Calhoun St, Fort Wayne, IN 46802'), // Default/Fallback
+            'computedTests' => [
+                'householdSize' => $household_size,
+                'items' => $voucher_items_count,
+                'itemsAdult' => $adults * $items_per_person,
+                'itemsChildren' => $children * $items_per_person,
+                'adults' => $adults,
+                'children' => $children
+            ]
         ];
+    }
+
+    /**
+     * Get all vouchers with pagination
+     *
+     * @param int $limit
+     * @param int $offset
+     * @param array $args Filter arguments
+     */
+    public static function get_all($limit = 20, $offset = 0, $args = [])
+    {
+        global $wpdb;
+        $vouchers_table = $wpdb->prefix . 'svdp_vouchers';
+        $conferences_table = $wpdb->prefix . 'svdp_conferences';
+        $managers_table = $wpdb->prefix . 'svdp_managers';
+        $reasons_table = $wpdb->prefix . 'svdp_override_reasons';
+
+        $where_clauses = ["1=1"];
+
+        // Filters
+        if (!empty($args['search'])) {
+            $search = '%' . $wpdb->esc_like($args['search']) . '%';
+            $where_clauses[] = $wpdb->prepare("(v.first_name LIKE %s OR v.last_name LIKE %s OR v.id LIKE %s)", $search, $search, $search);
+        }
+
+        if (!empty($args['conference_id'])) {
+            $where_clauses[] = $wpdb->prepare("v.conference_id = %d", $args['conference_id']);
+        }
+
+        $where_sql = implode(' AND ', $where_clauses);
+
+        $sql = "
+            SELECT 
+                v.*,
+                c.name as conference_name,
+                m.name as manager_name,
+                r.reason_text as override_reason_text
+            FROM $vouchers_table v
+            LEFT JOIN $conferences_table c ON v.conference_id = c.id
+            LEFT JOIN $managers_table m ON v.manager_id = m.id
+            LEFT JOIN $reasons_table r ON v.reason_id = r.id
+            WHERE $where_sql
+            ORDER BY v.voucher_created_date DESC, v.id DESC
+            LIMIT %d OFFSET %d
+        ";
+
+        return $wpdb->get_results($wpdb->prepare($sql, $limit, $offset));
+    }
+
+    /**
+     * Get voucher count for pagination
+     */
+    public static function get_count($args = [])
+    {
+        global $wpdb;
+        $vouchers_table = $wpdb->prefix . 'svdp_vouchers';
+
+        $where_clauses = ["1=1"];
+
+        if (!empty($args['search'])) {
+            $search = '%' . $wpdb->esc_like($args['search']) . '%';
+            $where_clauses[] = $wpdb->prepare("(first_name LIKE %s OR last_name LIKE %s OR id LIKE %s)", $search, $search, $search);
+        }
+
+        if (!empty($args['conference_id'])) {
+            $where_clauses[] = $wpdb->prepare("conference_id = %d", $args['conference_id']);
+        }
+
+        $where_sql = implode(' AND ', $where_clauses);
+
+        return (int) $wpdb->get_var("SELECT COUNT(*) FROM $vouchers_table v WHERE $where_sql");
     }
 
     /**
@@ -869,9 +953,14 @@ class SVDP_Voucher
         $subject = 'New Voucher Created - ' . $voucher->first_name . ' ' . $voucher->last_name;
 
         $household_size = intval($voucher->adults) + intval($voucher->children);
-        $voucher_amount = floatval($voucher->voucher_value);
 
-        $message = self::get_email_template($voucher, $created, $expires, $household_size, $voucher_amount);
+        // Calculate item counts
+        // Re-fetch items per person from conference settings or default
+        $items_per_person = intval($voucher->voucher_items_count) / max(1, $household_size);
+        $items_adult = intval($voucher->adults) * $items_per_person;
+        $items_child = intval($voucher->children) * $items_per_person;
+
+        $message = self::get_email_template($voucher, $created, $expires, $household_size, $items_adult, $items_child);
 
         // Email headers
         $headers = [
@@ -886,7 +975,7 @@ class SVDP_Voucher
     /**
      * Generate email template
      */
-    private static function get_email_template($voucher, $created, $expires, $household_size, $voucher_amount)
+    private static function get_email_template($voucher, $created, $expires, $household_size, $items_adult, $items_child)
     {
         ob_start();
         ?>
@@ -970,7 +1059,8 @@ class SVDP_Voucher
                         <p><span class="label">Household Size:</span> <?php echo esc_html($household_size); ?>
                             (<?php echo esc_html($voucher->adults); ?> adults, <?php echo esc_html($voucher->children); ?>
                             children)</p>
-                        <p><span class="label">Voucher Amount:</span> $<?php echo esc_html($voucher_amount); ?></p>
+                        <p><span class="label">Total Items (Adults):</span> <?php echo esc_html($items_adult); ?></p>
+                        <p><span class="label">Total Items (Children):</span> <?php echo esc_html($items_child); ?></p>
                     </div>
 
                     <div class="info-box">

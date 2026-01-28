@@ -31,7 +31,8 @@
                     organization_type: $('input[name="organization_type"]:checked').val(),
                     eligibility_days: $('#eligibility_days').val(),
                     regular_items: $('#regular_items').val(),
-                    woodshop_paused: $('#woodshop_paused').is(':checked') ? 1 : 0
+                    woodshop_paused: $('#woodshop_paused').is(':checked') ? 1 : 0,
+                    enable_printable_voucher: $('#enable_printable_voucher').is(':checked') ? 1 : 0
                 },
                 success: function(response) {
                     if (response.success) {
@@ -78,6 +79,7 @@
             const itemsPerPerson = row.find('.items-per-person').val();
             const active = row.find('.organization-active').is(':checked') ? 1 : 0;
             const woodshopPaused = row.find('.woodshop-paused').is(':checked') ? 1 : 0;
+            const enablePrintableVoucher = row.find('.enable-printable-voucher').is(':checked') ? 1 : 0;
 
             if (confirm('Update this organization?')) {
                 $.ajax({
@@ -93,7 +95,8 @@
                         eligibility_days: eligibilityDays,
                         items_per_person: itemsPerPerson,
                         active: active,
-                        woodshop_paused: woodshopPaused
+                        woodshop_paused: woodshopPaused,
+                        enable_printable_voucher: enablePrintableVoucher
                     },
                     success: function(response) {
                         if (response.success) {

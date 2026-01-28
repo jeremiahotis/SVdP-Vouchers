@@ -33,6 +33,16 @@
                     </td>
                 </tr>
                 <tr>
+                    <th><label for="enable_printable_voucher">Printable Vouchers</label></th>
+                    <td>
+                        <label>
+                            <input type="checkbox" id="enable_printable_voucher" name="enable_printable_voucher" value="1">
+                            Enable printable vouchers
+                        </label>
+                        <p class="description">Allows generating a PDF receipt for the neighbor.</p>
+                    </td>
+                </tr>
+                <tr>
                     <th><label for="conference_name">Organization Name *</label></th>
                     <td>
                         <input type="text" id="conference_name" name="name" class="regular-text" required>
@@ -86,6 +96,7 @@
                     <th style="width: 15%;">Notification Email</th>
                     <th style="width: 8%;">Active</th>
                     <th style="width: 10%;">Woodshop Paused</th>
+                    <th style="width: 8%;">Printable</th>
                     <th style="width: 20%;">Actions</th>
                 </tr>
             </thead>
@@ -205,6 +216,11 @@
                             <?php else: ?>
                                 <span style="color: #999;">—</span>
                             <?php endif; ?>
+                        </td>
+                        <td style="text-align: center;">
+                            <input type="checkbox" class="enable-printable-voucher"
+                                   data-id="<?php echo $conference->id; ?>"
+                                   <?php checked((int) ($conference->enable_printable_voucher ?? 0), 1); ?>>
                         </td>
                         <td>
                         <?php if (!$is_store): ?>

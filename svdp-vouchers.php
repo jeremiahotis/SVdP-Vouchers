@@ -410,8 +410,13 @@ class SVDP_Vouchers_Plugin
             return;
         }
 
+        // Enqueue Design System Tokens (Global)
+        wp_enqueue_style('shyft-variables', SVDP_VOUCHERS_PLUGIN_URL . 'public/css/shyft-variables.css', [], SVDP_VOUCHERS_VERSION);
+        wp_enqueue_style('svdp-print-receipt', SVDP_VOUCHERS_PLUGIN_URL . 'public/css/svdp-print-receipt.css', [], SVDP_VOUCHERS_VERSION);
+        wp_enqueue_script('svdp-print-receipt', SVDP_VOUCHERS_PLUGIN_URL . 'public/js/svdp-print-receipt.js', ['jquery'], SVDP_VOUCHERS_VERSION, true);
+
         // Always enqueue CSS (version bumped to bust cache)
-        wp_enqueue_style('svdp-vouchers-public', SVDP_VOUCHERS_PLUGIN_URL . 'public/css/voucher-forms.css', [], SVDP_VOUCHERS_VERSION);
+        wp_enqueue_style('svdp-vouchers-public', SVDP_VOUCHERS_PLUGIN_URL . 'public/css/voucher-forms.css', ['shyft-variables'], SVDP_VOUCHERS_VERSION);
 
         // Enqueue WordPress Heartbeat API for session management
         wp_enqueue_script('heartbeat');
