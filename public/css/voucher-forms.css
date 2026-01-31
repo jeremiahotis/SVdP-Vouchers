@@ -372,6 +372,25 @@
     margin: 0 0 15px 0;
 }
 
+.svdp-read-only-badge {
+    display: inline-block;
+    margin-left: 10px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #5a3e00;
+    background: #fff3cd;
+    border: 1px solid #ffecb5;
+    border-radius: 999px;
+    vertical-align: middle;
+}
+
+.svdp-read-only-note {
+    margin: 0 0 15px 0;
+    font-size: 14px;
+    color: #6b5a2a;
+}
+
 /* Search and Filter Bar */
 .svdp-search-filter-bar {
     display: flex;
@@ -469,6 +488,14 @@
     display: grid;
     grid-template-columns: 1fr 350px;
     gap: 20px;
+}
+
+.svdp-cashier-container.svdp-read-only .svdp-main-content {
+    grid-template-columns: 1fr;
+}
+
+.svdp-cashier-container.svdp-read-only .svdp-emergency-form-wrapper {
+    display: none;
 }
 
 /* Vouchers Section */

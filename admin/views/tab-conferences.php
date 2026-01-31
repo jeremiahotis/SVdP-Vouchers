@@ -259,7 +259,7 @@
             <li>Publish the page and share the URL with the organization</li>
         </ol>
         <p><strong>For the cashier station:</strong> Create a page and use the shortcode <code>[svdp_cashier_station]</code></p>
-        <p class="description">Only users with the "SVdP Cashier" role or administrators can access the cashier station.</p>
+        <p class="description">Users with the "SVdP Cashier" role can edit; "SVdP Cashier Viewer" and administrators can access read-only. To force read-only UI, use <code>[svdp_cashier_station read_only="1"]</code>.</p>
     </div>
 
 </div>

@@ -14,6 +14,7 @@
     let currentCoatVoucher = null;    // For coat modal
     let currentRedemptionVoucher = null; // For redemption modal
     let itemValues = svdpVouchers.itemValues || { adult: 5.00, child: 3.00 }; // Item values from settings
+    let readOnlyMode = false;
 
     $(document).ready(function () {
         // Check if we're on the cashier station page
@@ -21,15 +22,22 @@
             return; // Not on cashier station page, exit
         }
 
+        const cashierContainer = $('.svdp-cashier-container');
+        readOnlyMode = cashierContainer.data('read-only') === 1
+            || cashierContainer.data('read-only') === true
+            || cashierContainer.data('read-only') === '1';
+
         // Small delay to ensure DOM is fully ready
         setTimeout(function () {
             setupEventListeners();
-            initializeEmergencyForm();
-            initializeModal();
-            initializeCoatModal();
-            initializeRedemptionModal();
+            if (!readOnlyMode) {
+                initializeEmergencyForm();
+                initializeModal();
+                initializeCoatModal();
+                initializeRedemptionModal();
+                loadOverrideReasons(); // Load dropdown options
+            }
             loadItemValues();
-            loadOverrideReasons(); // Load dropdown options
             loadVouchers();
             setupHeartbeat();
 
@@ -279,27 +287,29 @@
         // Coat Info
         card += renderCoatInfo(voucher);
 
-        // Card Actions
-        card += '<div class="svdp-card-actions">';
+        // Card Actions (skip in read-only mode)
+        if (!readOnlyMode) {
+            card += '<div class="svdp-card-actions">';
 
-        if (voucher.status === 'Active') {
-            card += '<button class="svdp-btn svdp-btn-success svdp-redeem-btn" data-id="' + voucher.id + '">';
-            card += '✓ Mark Redeemed';
-            card += '</button>';
+            if (voucher.status === 'Active') {
+                card += '<button class="svdp-btn svdp-btn-success svdp-redeem-btn" data-id="' + voucher.id + '">';
+                card += '✓ Mark Redeemed';
+                card += '</button>';
+            }
+
+            if (voucher.coat_eligible && voucher.coat_status !== 'Issued') {
+                card += '<button class="svdp-btn svdp-btn-coat svdp-issue-coat" ';
+                card += 'data-id="' + voucher.id + '" ';
+                card += 'data-adults="' + voucher.adults + '" ';
+                card += 'data-children="' + voucher.children + '" ';
+                card += 'data-firstname="' + voucher.first_name + '" ';
+                card += 'data-lastname="' + voucher.last_name + '">';
+                card += '🧥 Issue Coat';
+                card += '</button>';
+            }
+
+            card += '</div>'; // End card actions
         }
-
-        if (voucher.coat_eligible && voucher.coat_status !== 'Issued') {
-            card += '<button class="svdp-btn svdp-btn-coat svdp-issue-coat" ';
-            card += 'data-id="' + voucher.id + '" ';
-            card += 'data-adults="' + voucher.adults + '" ';
-            card += 'data-children="' + voucher.children + '" ';
-            card += 'data-firstname="' + voucher.first_name + '" ';
-            card += 'data-lastname="' + voucher.last_name + '">';
-            card += '🧥 Issue Coat';
-            card += '</button>';
-        }
-
-        card += '</div>'; // End card actions
         card += '</div>'; // End card
 
         return card;
@@ -334,6 +344,10 @@
      * Attach event listeners to card action buttons
      */
     function attachCardEventListeners() {
+        if (readOnlyMode) {
+            return;
+        }
+
         // Redeem button - open redemption modal
         $('.svdp-redeem-btn').off('click').on('click', function () {
             const voucherId = $(this).data('id');

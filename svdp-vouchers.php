@@ -81,8 +81,8 @@ class SVDP_Vouchers_Plugin
         // Run migration for existing databases
         SVDP_Database::migrate_to_v2();
 
-        // Create cashier role
-        $this->create_cashier_role();
+        // Ensure cashier roles exist
+        $this->ensure_cashier_roles();
 
         // Flush rewrite rules
         flush_rewrite_rules();
@@ -100,13 +100,41 @@ class SVDP_Vouchers_Plugin
     /**
      * Create cashier role
      */
-    private function create_cashier_role()
+    private function ensure_cashier_roles()
     {
         // Add custom role for cashiers
-        add_role('svdp_cashier', 'SVdP Cashier', [
-            'read' => true,
-            'access_cashier_station' => true,
-        ]);
+        $cashier_role = get_role('svdp_cashier');
+        if (!$cashier_role) {
+            add_role('svdp_cashier', 'SVdP Cashier', [
+                'read' => true,
+                'access_cashier_station' => true,
+            ]);
+            $cashier_role = get_role('svdp_cashier');
+        }
+
+        if ($cashier_role && !$cashier_role->has_cap('access_cashier_station')) {
+            $cashier_role->add_cap('access_cashier_station');
+        }
+        if ($cashier_role && !$cashier_role->has_cap('read')) {
+            $cashier_role->add_cap('read');
+        }
+
+        // Add view-only role for cashier station lookup
+        $viewer_role = get_role('svdp_cashier_viewer');
+        if (!$viewer_role) {
+            add_role('svdp_cashier_viewer', 'SVdP Cashier Viewer', [
+                'read' => true,
+                'access_cashier_station_view' => true,
+            ]);
+            $viewer_role = get_role('svdp_cashier_viewer');
+        }
+
+        if ($viewer_role && !$viewer_role->has_cap('access_cashier_station_view')) {
+            $viewer_role->add_cap('access_cashier_station_view');
+        }
+        if ($viewer_role && !$viewer_role->has_cap('read')) {
+            $viewer_role->add_cap('read');
+        }
     }
 
     /**
@@ -114,6 +142,9 @@ class SVDP_Vouchers_Plugin
      */
     public function init()
     {
+        // Ensure roles and capabilities are present (safe if already set)
+        $this->ensure_cashier_roles();
+
         // Initialize shortcodes
         new SVDP_Shortcodes();
 
@@ -141,7 +172,7 @@ class SVDP_Vouchers_Plugin
         register_rest_route('svdp/v1', '/vouchers', [
             'methods' => 'GET',
             'callback' => ['SVDP_Voucher', 'get_vouchers'],
-            'permission_callback' => [$this, 'check_cashier_access']
+            'permission_callback' => [$this, 'check_cashier_view']
         ]);
 
         // Check for duplicate
@@ -265,6 +296,18 @@ class SVDP_Vouchers_Plugin
     }
 
     /**
+     * Check cashier view access (Cookie + Capability)
+     */
+    public function check_cashier_view($request)
+    {
+        if (!$this->user_can_view_cashier()) {
+            return SVDP_REST_Errors::forbidden('Cashier view access required.');
+        }
+
+        return true;
+    }
+
+    /**
      * Check admin access (Cookie + manage_options)
      */
     public function check_admin_access($request)
@@ -379,6 +422,23 @@ class SVDP_Vouchers_Plugin
         }
 
         return current_user_can('access_cashier_station');
+    }
+
+    /**
+     * Check if current user has cashier view access
+     */
+    public function user_can_view_cashier()
+    {
+        if (!is_user_logged_in()) {
+            return false;
+        }
+
+        if (current_user_can('manage_options')) {
+            return true;
+        }
+
+        return current_user_can('access_cashier_station')
+            || current_user_can('access_cashier_station_view');
     }
 
     /**
