@@ -189,7 +189,8 @@ class SVDP_Admin
             'enable_printable_voucher' => isset($_POST['enable_printable_voucher']) ? intval($_POST['enable_printable_voucher']) : 0,
         ];
 
-        if (SVDP_Conference::update($id, $data)) {
+        $result = SVDP_Conference::update($id, $data);
+        if ($result !== false) {
             wp_send_json_success('Conference updated successfully');
         } else {
             wp_send_json_error('Failed to update conference');
