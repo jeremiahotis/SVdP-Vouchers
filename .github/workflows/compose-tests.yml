@@ -1,0 +1,23 @@
+name: Compose Test Suite
+
+on:
+  push:
+    branches: [ main, feature/* ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  compose-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare env
+        run: |
+          cp .env.example .env
+          echo "GIT_SHA=${GITHUB_SHA}" >> .env
+
+      - name: Run compose tests
+        run: |
+          chmod +x infra/scripts/compose.sh
+          infra/scripts/compose.sh run --rm tests sh -c "pnpm test:db"
