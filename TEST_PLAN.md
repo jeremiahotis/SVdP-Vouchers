@@ -2,6 +2,10 @@
 
 This is a manual verification checklist intended for local dev + staging.
 
+## Test image freshness guardrails
+- Local `tests` container bind-mounts the repo (`/app`) to avoid stale source.
+- Tests print `TEST_IMAGE_SHA` at start; set `GIT_SHA` in CI/build when needed.
+
 ## Setup
 - Enable feature flags one by one to isolate failures.
 - Ensure at least:
@@ -72,4 +76,3 @@ Use known cap + gross totals:
 ## Clothing derivation (once line items exist)
 - For a clothing voucher linked to a receipt:
   - Expect: item count and value derived from receipt items.
-

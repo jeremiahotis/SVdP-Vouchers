@@ -11,6 +11,8 @@ stepsCompleted:
   - step-09-functional
   - step-10-nonfunctional
   - step-11-polish
+  - step-01b-continue
+  - step-12-complete
 inputDocuments:
   - docs/api-contracts-plugin.md
   - docs/component-inventory.md

@@ -1,0 +1,9 @@
+{
+    email {$CADDY_EMAIL}
+}
+
+{$HOST} {
+    @api path /api/*
+    reverse_proxy @api api:3001
+    reverse_proxy web:3000
+}
