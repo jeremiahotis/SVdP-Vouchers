@@ -15,7 +15,7 @@
 #   - {file-path}: File created/found (e.g., "docs/product-brief.md")
 #   - skipped: Optional/conditional workflow that was skipped
 
-generated: "2026-01-14 13:18"
+generated: "2026-02-04 13:07"
 project: "SVdP Vouchers"
 project_type: "wordpress-plugin"
 project_level: 1
@@ -28,7 +28,7 @@ workflow_status:
   research: optional
   product-brief: optional
   prd: _bmad-output/planning-artifacts/prd.md
-  create-ux-design: conditional
+  create-ux-design: _bmad-output/planning-artifacts/ux-design-specification.md
   create-architecture: _bmad-output/planning-artifacts/architecture.md
   create-epics-and-stories: required
   test-design: optional
