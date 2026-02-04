@@ -10,3 +10,4 @@ apps/api/dist/
 apps/api/openapi.*.json
 apps/web/.next/
 apps/web/next-env.d.ts
+packages/contracts/dist/
