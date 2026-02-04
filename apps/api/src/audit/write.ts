@@ -1,4 +1,4 @@
-import { getDb } from "../db/client";
+import { getDb } from "../db/client.js";
 
 export async function writeAuditEvent(params: {
   tenantId: string | null;

@@ -1,1 +1,1 @@
-export { writeAuditEvent } from "../audit/write";
+export { writeAuditEvent } from "../audit/write.js";

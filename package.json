@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -12,6 +15,7 @@
     "dev:web": "pnpm -C apps/web dev",
     "build": "pnpm -C apps/api build && pnpm -C apps/web build",
     "seed:platform": "tsx tools/seed-platform.ts",
+    "api:openapi": "pnpm -C apps/api openapi:generate",
     "test:e2e": "playwright test",
     "test:tenant": "node -e \"console.log('TEST_IMAGE_SHA=',process.env.GIT_SHA||'unknown')\" && tsx tests/tenant-isolation/tenant-resolution.ts",
     "test:idempotency": "node -e \"console.log('TEST_IMAGE_SHA=',process.env.GIT_SHA||'unknown')\" && tsx tests/integration/idempotency.ts",

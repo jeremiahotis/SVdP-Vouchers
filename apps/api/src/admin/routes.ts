@@ -1,8 +1,8 @@
 import type { FastifyInstance } from "fastify";
-import { getDb } from "../db/client";
-import { requirePlatformAdmin } from "./guards";
-import { writeAuditEvent } from "./audit";
-import { errorSchema, successSchema } from "../schemas/response";
+import { getDb } from "../db/client.js";
+import { requirePlatformAdmin } from "./guards.js";
+import { writeAuditEvent } from "./audit.js";
+import { errorSchema, successSchema } from "../schemas/response.js";
 
 const tenantSchema = {
   type: "object",
@@ -75,8 +75,6 @@ export function registerAdminRoutes(app: FastifyInstance) {
         },
         response: {
           200: successSchema(tenantSchema),
-          ...adminErrorResponses,
-          ...adminErrorResponses,
           ...adminErrorResponses,
         },
       },

@@ -1,4 +1,4 @@
-import type { RefusalReason } from "../constants/refusal-reasons";
+import type { RefusalReason } from "../constants/refusal-reasons.js";
 
 export type RefusalResponse = {
   success: false;
