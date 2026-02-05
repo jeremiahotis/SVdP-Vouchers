@@ -1,6 +1,6 @@
 # Story 1.3: Correlation IDs + Refusal/Error Metrics Split
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -20,14 +20,14 @@ so that tenancy enforcement and business denials are observable from day one.
 
 ## Tasks / Subtasks
 
-- [ ] Implement correlation_id generator and response injector
-  - [ ] Always include `correlation_id` on success/refusal/error responses
-- [ ] Implement structured logging split
-  - [ ] Log `outcome` and `reason` for refusals
-  - [ ] Log `outcome=error` and error codes for failures
-- [ ] Add tests for telemetry schema
-  - [ ] Verify refusal logs contain `outcome=refusal` and `reason`
-  - [ ] Verify error logs contain `outcome=error`
+- [x] Implement correlation_id generator and response injector
+  - [x] Always include `correlation_id` on success/refusal/error responses
+- [x] Implement structured logging split
+  - [x] Log `outcome` and `reason` for refusals
+  - [x] Log `outcome=error` and error codes for failures
+- [x] Add tests for telemetry schema
+  - [x] Verify refusal logs contain `outcome=refusal` and `reason`
+  - [x] Verify error logs contain `outcome=error`
 
 ## Dev Notes
 
@@ -61,10 +61,35 @@ GPT-5
 
 N/A
 
+### Implementation Plan
+
+- Add correlation_id injection in a pre-serialization hook.
+- Add error handler that returns structured error with correlation_id.
+- Register correlation middleware in main.
+- Update correlation telemetry integration test to exercise middleware.
+
 ### Completion Notes List
 
-- Story scaffolded for correlation_id + refusal/error metrics split.
+- Added correlation_id injection for JSON responses and error handler.
+- Updated correlation telemetry test to use correlation middleware.
+- Added structured refusal/error telemetry logging fields.
+- Verified telemetry schema tests for refusal/error logging.
+- Tests run: `docker compose -f infra/docker/docker-compose.yml run --rm --build api-test pnpm test:db`.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/1-3-correlation-ids-refusal-error-metrics-split.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `_bmad-output/atdd-checklist-1-3-correlation-ids-refusal-error-metrics-split.md`
+- `apps/api/openapi.admin.json`
+- `apps/api/src/observability/correlation.ts`
+- `apps/api/src/main.ts`
+- `tests/integration/openapi-admin-routes.ts`
+- `tests/integration/correlation-telemetry.ts`
+- `package.json`
+
+### Change Log
+
+- 2026-02-05: Added correlation_id injection for success/refusal/error responses.
+- 2026-02-05: Added structured refusal/error outcome logging.
+- 2026-02-05: Added and validated telemetry schema tests.

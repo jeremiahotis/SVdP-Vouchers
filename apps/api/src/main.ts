@@ -4,10 +4,12 @@ import { registerRoutes } from "./routes.js";
 import { authHook } from "./auth/hook.js";
 import { tenantContextHook } from "./tenancy/hook.js";
 import { dbErrorHook, dbRequestHook, dbResponseHook } from "./db/hooks.js";
+import { registerCorrelation } from "./observability/correlation.js";
 
 const app = Fastify({ logger: true });
 
 await registerOpenApi(app);
+registerCorrelation(app);
 app.addHook("onRequest", dbRequestHook);
 app.addHook("onRequest", authHook);
 app.addHook("onRequest", tenantContextHook);

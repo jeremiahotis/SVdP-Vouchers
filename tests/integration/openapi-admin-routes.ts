@@ -47,8 +47,15 @@ async function loadGeneratedAdminSpec() {
 const paths = Object.keys(spec.paths ?? {});
 
 assert.ok(paths.includes("/admin/tenants"));
-assert.ok(paths.includes("/admin/tenants/:tenant_id"));
+assert.ok(paths.includes("/admin/tenants/{tenant_id}"));
 assert.ok(paths.includes("/admin/tenant-apps"));
 
-const generatedAdminSpec = await loadGeneratedAdminSpec();
-assert.deepStrictEqual(spec, generatedAdminSpec);
+async function run() {
+  const generatedAdminSpec = await loadGeneratedAdminSpec();
+  assert.deepStrictEqual(spec, generatedAdminSpec);
+}
+
+run().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
