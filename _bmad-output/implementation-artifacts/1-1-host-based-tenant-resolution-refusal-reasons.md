@@ -1,6 +1,6 @@
 # Story 1.1: Host-Based Tenant Resolution + Refusal Reasons
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -23,18 +23,18 @@ so that tenant isolation is enforceable without enumeration.
 
 ## Tasks / Subtasks
 
-- [ ] Implement tenant resolution middleware
-  - [ ] Resolve tenant from host header only (exact match to `platform.tenants.host`)
-  - [ ] Verify JWT tenant claim matches resolved tenant_id
-  - [ ] Reject any tenant_id in body/query
-- [ ] Implement refusal envelope helpers
-  - [ ] `TENANT_NOT_FOUND`, `TENANT_CONTEXT_MISMATCH`, `NOT_A_MEMBER` with HTTP 200
-  - [ ] Include `correlation_id` in all responses
-- [ ] Add tenant isolation tests
-  - [ ] Unknown host → `TENANT_NOT_FOUND`
-  - [ ] Host/JWT mismatch → `TENANT_CONTEXT_MISMATCH`
-  - [ ] Not a member → `NOT_A_MEMBER`
-  - [ ] Envelope shape identical for unknown host vs app-disabled
+- [x] Implement tenant resolution middleware
+  - [x] Resolve tenant from host header only (exact match to `platform.tenants.host`)
+  - [x] Verify JWT tenant claim matches resolved tenant_id
+  - [x] Reject any tenant_id in body/query
+- [x] Implement refusal envelope helpers
+  - [x] `TENANT_NOT_FOUND`, `TENANT_CONTEXT_MISMATCH`, `NOT_A_MEMBER` with HTTP 200
+  - [x] Include `correlation_id` in all responses
+- [x] Add tenant isolation tests
+  - [x] Unknown host → `TENANT_NOT_FOUND`
+  - [x] Host/JWT mismatch → `TENANT_CONTEXT_MISMATCH`
+  - [x] Not a member → `NOT_A_MEMBER`
+  - [x] Envelope shape identical for unknown host vs app-disabled
 
 ## Dev Notes
 
@@ -67,14 +67,55 @@ so that tenant isolation is enforceable without enumeration.
 
 GPT-5
 
+### Implementation Plan
+
+- Enforce tenant context via hook (host/JWT match, reject tenant_id in input, membership check).
+- Extend refusal reason constants and helper.
+- Add isolation test coverage for refusal reasons and envelope parity.
+
 ### Debug Log References
 
 N/A
 
 ### Completion Notes List
 
-- Story scaffolded with tenancy/refusal contract requirements.
+- Implemented tenant_id query/body rejection and membership refusal in tenancy hook; added membership lookup helper and NOT_A_MEMBER refusal constant.
+- Added host-based tenant refusal isolation test and tenant factory.
+- Updated Postgres config to read POSTGRES_PORT for local docker testing.
+- Hardened tenant context to require authContext/tenant claim, added request-scoped DB transaction hooks, and expanded tenant isolation tests for missing auth/claim.
+- Tests run (this update): `docker compose -f infra/docker/docker-compose.yml run --rm api-test pnpm test:tenant`, `docker compose -f infra/docker/docker-compose.yml run --rm api-test pnpm test:db`.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/1-1-host-based-tenant-resolution-refusal-reasons.md`
+- `_bmad-output/atdd-checklist-1-1-host-based-tenant-resolution-refusal-reasons.md`
+- `.env`
+- `AGENTS.md`
+- `apps/api/db/knexfile.ts`
+- `apps/api/src/db/hooks.ts`
+- `apps/api/src/db/types.d.ts`
+- `apps/api/src/main.ts`
+- `apps/api/src/platform/tenants.ts`
+- `apps/api/src/tenancy/hook.ts`
+- `apps/api/src/tenancy/membership.ts`
+- `apps/api/src/tenancy/refusal.ts`
+- `apps/api/src/tenancy/resolve.ts`
+- `package.json`
+- `packages/contracts/src/constants/refusal-reasons.ts`
+- `tests/support/fixtures/factories/tenant-factory.ts`
+- `tests/tenant-isolation/host-based-tenant-refusal.ts`
+- `.DS_Store`
+- `.codex/config.toml`
+- `.codex/log/codex-tui.log`
+- `.codex/rules/default.rules`
+- `.codex/version.json`
+- `_bmad-output/.DS_Store`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `infra/docker/api.test.Dockerfile`
+- `infra/docker/docker-compose.yml`
+
+### Change Log
+
+- 2026-02-05: Implemented tenancy refusal enforcement (NOT_A_MEMBER, tenant_id rejection), added tenant isolation tests, updated Postgres port handling.
+- 2026-02-05: Required authContext/tenant claim for tenant context, added request-scoped DB transaction hooks, expanded tenant isolation tests, and updated tenancy resolution to accept DB overrides.
+- 2026-02-05: Added dockerized api-test runner, documented docker-only test guidance, and aligned local Postgres env with compose defaults.

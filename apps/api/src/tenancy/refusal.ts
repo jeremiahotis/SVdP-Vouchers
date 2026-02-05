@@ -11,4 +11,5 @@ export function refusal(reason: string, correlationId: string) {
 export const refusalReasons = {
   tenantNotFound: REFUSAL_REASONS.tenantNotFound,
   tenantContextMismatch: REFUSAL_REASONS.tenantContextMismatch,
+  notAMember: REFUSAL_REASONS.notAMember,
 } as const;
