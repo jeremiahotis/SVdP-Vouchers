@@ -1,6 +1,6 @@
 # Story 1.2: Platform Registry + App Enablement Enforcement
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -21,14 +21,14 @@ so that disabled tenants cannot access VoucherShyft and enablement is auditable.
 
 ## Tasks / Subtasks
 
-- [ ] Implement app enablement check
-  - [ ] Query `platform.tenant_apps` for current tenant and app enabled
-  - [ ] Return external `TENANT_NOT_FOUND` refusal while logging `APP_DISABLED`
-- [ ] Add platform admin route auth rules
-  - [ ] Admin routes use 401/403 for access denial (not refusal envelope)
-- [ ] OpenAPI generation
-  - [ ] Ensure admin routes are included in OpenAPI output
-  - [ ] Add CI check to fail on OpenAPI drift
+- [x] Implement app enablement check
+  - [x] Query `platform.tenant_apps` for current tenant and app enabled
+  - [x] Return external `TENANT_NOT_FOUND` refusal while logging `APP_DISABLED`
+- [x] Add platform admin route auth rules
+  - [x] Admin routes use 401/403 for access denial (not refusal envelope)
+- [x] OpenAPI generation
+  - [x] Ensure admin routes are included in OpenAPI output
+  - [x] Add CI check to fail on OpenAPI drift
 
 ## Dev Notes
 
@@ -59,14 +59,37 @@ so that disabled tenants cannot access VoucherShyft and enablement is auditable.
 
 GPT-5
 
+### Implementation Plan
+
+- Log APP_DISABLED when app enablement is false while returning TENANT_NOT_FOUND.
+- Add OpenAPI admin route coverage test and include in admin test run.
+- Confirm admin guard semantics remain 401/403.
+
 ### Debug Log References
 
 N/A
 
 ### Completion Notes List
 
-- Story scaffolded for enablement enforcement and OpenAPI drift checks.
+- Added APP_DISABLED logging on enablement refusal.
+- Ensured admin routes are not intercepted by tenant refusal hook (401/403 preserved).
+- Added 401/403 responses to admin PATCH OpenAPI schema.
+- Added OpenAPI admin drift check by regenerating spec in test.
+- Expanded OpenAPI admin route coverage to include PATCH route.
+- Tests run: `docker compose -f infra/docker/docker-compose.yml run --rm api-test pnpm test:db`.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/1-2-platform-registry-app-enablement-enforcement.md`
+- `apps/api/src/admin/routes.ts`
+- `apps/api/src/tenancy/hook.ts`
+- `AGENTS.md`
+- `.gitignore`
+- `package.json`
+- `tests/integration/openapi-admin-routes.ts`
+- `tests/tenant-isolation/host-based-tenant-refusal.ts`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+
+### Change Log
+
+- 2026-02-05: Preserved admin 401/403 behavior, added OpenAPI drift check, updated schema/test coverage, and enforced mandatory testing rule.

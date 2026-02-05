@@ -127,6 +127,7 @@ export function registerAdminRoutes(app: FastifyInstance) {
         },
         response: {
           200: successSchema(tenantSchema),
+          ...adminErrorResponses,
         },
       },
     },

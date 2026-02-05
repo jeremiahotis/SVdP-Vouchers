@@ -1,4 +1,5 @@
 .DS_Store
+_bmad-output/.DS_Store
 node_modules/
 .env
 .codex/
