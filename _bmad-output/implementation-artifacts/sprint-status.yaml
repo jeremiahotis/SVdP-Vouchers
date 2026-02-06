@@ -45,7 +45,7 @@ development_status:
   1-1-host-based-tenant-resolution-refusal-reasons: done
   1-2-platform-registry-app-enablement-enforcement: review
   1-3-correlation-ids-refusal-error-metrics-split: review
-  1-4-minimal-audit-write-path-append-only: ready-for-dev
+  1-4-minimal-audit-write-path-append-only: done
   1-5-operational-gates-hooks-release-blocking: ready-for-dev
   epic-1-retrospective: optional
 

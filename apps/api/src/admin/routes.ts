@@ -1,4 +1,4 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import { getDb } from "../db/client.js";
 import { requirePlatformAdmin } from "./guards.js";
 import { writeAuditEvent } from "./audit.js";
@@ -30,6 +30,25 @@ const adminErrorResponses = {
   403: errorSchema,
 };
 
+type ErrorWithCode = Error & { code?: string };
+
+async function writeAdminAuditEvent(
+  request: FastifyRequest,
+  params: Parameters<typeof writeAuditEvent>[0],
+) {
+  try {
+    await writeAuditEvent(params);
+  } catch (error) {
+    request.log.error(
+      { err: error, correlation_id: request.id },
+      "audit_write_failed",
+    );
+    const err = new Error("Audit write failed") as ErrorWithCode;
+    err.code = "AUDIT_WRITE_FAILED";
+    throw err;
+  }
+}
+
 export function registerAdminRoutes(app: FastifyInstance) {
   app.get(
     "/admin/tenants",
@@ -54,7 +73,9 @@ export function registerAdminRoutes(app: FastifyInstance) {
         .select("tenant_id", "host", "tenant_slug", "status")
         .orderBy("host", "asc");
 
-      return { success: true, data: rows, correlation_id: request.id };
+      return reply
+        .header("content-type", "application/json")
+        .send(JSON.stringify({ success: true, data: rows, correlation_id: request.id }));
     },
   );
 
@@ -73,16 +94,19 @@ export function registerAdminRoutes(app: FastifyInstance) {
           },
           required: ["tenant_id", "host"],
         },
-        response: {
-          200: successSchema(tenantSchema),
-          ...adminErrorResponses,
-        },
+        // Response schema validation is disabled while using pre-serialized JSON responses.
+        // response: {
+        //   200: successSchema(tenantSchema),
+        //   ...adminErrorResponses,
+        // },
       },
     },
     async (request, reply) => {
       if (!requirePlatformAdmin(request, reply)) {
         return;
       }
+
+      const db = request.db ?? getDb();
 
       const body = request.body as {
         tenant_id: string;
@@ -91,7 +115,7 @@ export function registerAdminRoutes(app: FastifyInstance) {
         status?: string | null;
       };
 
-      const [row] = await getDb()("platform.tenants")
+      const [row] = await db("platform.tenants")
         .insert({
           tenant_id: body.tenant_id,
           host: body.host,
@@ -100,15 +124,19 @@ export function registerAdminRoutes(app: FastifyInstance) {
         })
         .returning(["tenant_id", "host", "tenant_slug", "status"]);
 
-      await writeAuditEvent({
+      await writeAdminAuditEvent(request, {
         tenantId: body.tenant_id,
         actorId: request.authContext?.actorId ?? "unknown",
         eventType: "platform.tenant.created",
         entityId: body.tenant_id,
         metadata: { host: body.host },
+        correlationId: request.id,
+        dbOverride: db,
       });
 
-      return { success: true, data: row, correlation_id: request.id };
+      return reply
+        .header("content-type", "application/json")
+        .send(JSON.stringify({ success: true, data: row, correlation_id: request.id }));
     },
   );
 
@@ -143,24 +171,29 @@ export function registerAdminRoutes(app: FastifyInstance) {
         status?: string | null;
       };
 
-      const [row] = await getDb()("platform.tenants")
+      const db = request.db ?? getDb();
+      const [row] = await db("platform.tenants")
         .where({ tenant_id: params.tenant_id })
         .update({
           host: body.host ?? undefined,
           tenant_slug: body.tenant_slug ?? undefined,
           status: body.status ?? undefined,
-          updated_at: getDb().fn.now(),
+          updated_at: db.fn.now(),
         })
         .returning(["tenant_id", "host", "tenant_slug", "status"]);
 
-      await writeAuditEvent({
+      await writeAdminAuditEvent(request, {
         tenantId: params.tenant_id,
         actorId: request.authContext?.actorId ?? "unknown",
         eventType: "platform.tenant.updated",
         entityId: params.tenant_id,
+        correlationId: request.id,
+        dbOverride: db,
       });
 
-      return { success: true, data: row, correlation_id: request.id };
+      return reply
+        .header("content-type", "application/json")
+        .send(JSON.stringify({ success: true, data: row, correlation_id: request.id }));
     },
   );
 
@@ -195,7 +228,8 @@ export function registerAdminRoutes(app: FastifyInstance) {
         enabled: boolean;
       };
 
-      const [row] = await getDb()("platform.tenant_apps")
+      const db = request.db ?? getDb();
+      const [row] = await db("platform.tenant_apps")
         .insert({
           tenant_id: body.tenant_id,
           app_key: body.app_key,
@@ -204,18 +238,22 @@ export function registerAdminRoutes(app: FastifyInstance) {
         .onConflict(["tenant_id", "app_key"])
         .merge({
           enabled: body.enabled,
-          updated_at: getDb().fn.now(),
+          updated_at: db.fn.now(),
         })
         .returning(["tenant_id", "app_key", "enabled"]);
 
-      await writeAuditEvent({
+      await writeAdminAuditEvent(request, {
         tenantId: body.tenant_id,
         actorId: request.authContext?.actorId ?? "unknown",
         eventType: "platform.tenant_app.set",
         entityId: `${body.tenant_id}:${body.app_key}`,
+        correlationId: request.id,
+        dbOverride: db,
       });
 
-      return { success: true, data: row, correlation_id: request.id };
+      return reply
+        .header("content-type", "application/json")
+        .send(JSON.stringify({ success: true, data: row, correlation_id: request.id }));
     },
   );
 }
