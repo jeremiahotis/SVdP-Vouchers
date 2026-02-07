@@ -1,9 +1,0 @@
-personality = "pragmatic"
-[projects."/Users/jeremiahotis/Local Sites/voucher-system/app/public/wp-content/plugins/SVdP-Vouchers"]
-trust_level = "trusted"
-
-[projects."/Users/jeremiahotis/Local Sites/voucher-system/app/public/wp-content/plugins/svdp-vouchers"]
-trust_level = "trusted"
-
-[projects."/Users/jeremiahotis/Local Sites/voucher-system/app/public/wp-content/plugins/voucher-shyft"]
-trust_level = "trusted"

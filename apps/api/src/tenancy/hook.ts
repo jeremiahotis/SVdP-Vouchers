@@ -12,6 +12,9 @@ export async function tenantContextHook(
   if (request.url.startsWith("/health")) {
     return;
   }
+  if (request.url.startsWith("/admin")) {
+    return;
+  }
 
   const hostHeader = request.headers.host ?? "";
   const host = hostHeader.split(":")[0];
@@ -30,6 +33,15 @@ export async function tenantContextHook(
 
   const enabled = await isAppEnabled(tenantId, APP_KEY, request.db);
   if (!enabled) {
+    request.log.warn(
+      {
+        msg: "app_disabled",
+        reason: "APP_DISABLED",
+        tenant_id: tenantId,
+        correlation_id: correlationId,
+      },
+      "app_disabled",
+    );
     reply.code(200).send(refusal(refusalReasons.tenantNotFound, correlationId));
     return;
   }

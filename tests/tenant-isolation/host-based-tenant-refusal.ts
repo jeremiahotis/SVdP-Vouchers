@@ -21,9 +21,24 @@ type ReplyCapture = FastifyReply & {
   body?: unknown;
 };
 
+type LogEntry = {
+  level: "warn" | "info";
+  msg?: string;
+  reason?: string;
+  tenant_id?: string;
+  correlation_id?: string;
+};
+
+type LogCapture = {
+  entries: LogEntry[];
+  warn: (payload: Record<string, unknown>, msg?: string) => void;
+  info: (payload: Record<string, unknown>, msg?: string) => void;
+};
+
 type RequestCapture = FastifyRequest & {
   authContext?: TestAuthContext;
   tenantContext?: { tenantId: string; host: string };
+  log?: LogCapture;
 };
 
 function createReply(): ReplyCapture {
@@ -41,12 +56,38 @@ function createReply(): ReplyCapture {
   } as ReplyCapture;
 }
 
+function createLogger(): LogCapture {
+  const entries: LogEntry[] = [];
+  return {
+    entries,
+    warn(payload: Record<string, unknown>, msg?: string) {
+      entries.push({
+        level: "warn",
+        msg: msg ?? (payload.msg as string | undefined),
+        reason: payload.reason as string | undefined,
+        tenant_id: payload.tenant_id as string | undefined,
+        correlation_id: payload.correlation_id as string | undefined,
+      });
+    },
+    info(payload: Record<string, unknown>, msg?: string) {
+      entries.push({
+        level: "info",
+        msg: msg ?? (payload.msg as string | undefined),
+        reason: payload.reason as string | undefined,
+        tenant_id: payload.tenant_id as string | undefined,
+        correlation_id: payload.correlation_id as string | undefined,
+      });
+    },
+  };
+}
+
 function createRequest(params: {
   host: string;
   authContext?: TestAuthContext;
   query?: Record<string, unknown>;
   body?: Record<string, unknown>;
   db?: Knex;
+  log?: LogCapture;
 }): RequestCapture {
   return {
     id: faker.string.uuid(),
@@ -56,6 +97,7 @@ function createRequest(params: {
     query: params.query,
     body: params.body,
     db: params.db,
+    log: params.log,
   } as RequestCapture;
 }
 
@@ -110,13 +152,23 @@ async function run() {
     const unknownReply = createReply();
     await tenantContextHook(unknownRequest, unknownReply);
 
-    const disabledRequest = createRequest({ host: disabledTenant.host, db });
+    const disabledLogger = createLogger();
+    const disabledRequest = createRequest({ host: disabledTenant.host, db, log: disabledLogger });
     const disabledReply = createReply();
     await tenantContextHook(disabledRequest, disabledReply);
 
     assert.equal(unknownReply.statusCode, 200);
     assert.equal(disabledReply.statusCode, 200);
     assert.deepStrictEqual(normalizeRefusal(unknownReply.body), normalizeRefusal(disabledReply.body));
+    assert.ok(
+      disabledLogger.entries.some(
+        (entry) =>
+          entry.level === "warn" &&
+          entry.reason === "APP_DISABLED" &&
+          entry.tenant_id === disabledTenant.tenant_id &&
+          entry.correlation_id === disabledRequest.id,
+      ),
+    );
 
     // AC3: host/JWT mismatch returns TENANT_CONTEXT_MISMATCH.
     const mismatchTenant = createTenant();
