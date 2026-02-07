@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
-import { errorSchema, successOrRefusalSchema, successSchema } from "./schemas/response";
-import { registerAdminRoutes } from "./admin/routes";
-import { writeAuditEvent } from "./audit/write";
+import { errorSchema, successOrRefusalSchema, successSchema } from "./schemas/response.js";
+import { registerAdminRoutes } from "./admin/routes.js";
+import { writeAuditEvent } from "./audit/write.js";
 
 const healthDataSchema = {
   type: "object",

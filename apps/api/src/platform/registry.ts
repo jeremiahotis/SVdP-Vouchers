@@ -1,5 +1,5 @@
 import type { Knex } from "knex";
-import { getDb } from "../db/client";
+import { getDb } from "../db/client.js";
 
 export type PlatformTenant = {
   tenant_id: string;

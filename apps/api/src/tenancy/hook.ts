@@ -1,8 +1,8 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { APP_KEY } from "../config/app";
-import { resolveTenantIdByHost } from "./resolve";
-import { refusal, refusalReasons } from "./refusal";
-import { isAppEnabled } from "../platform/registry";
+import { APP_KEY } from "../config/app.js";
+import { resolveTenantIdByHost } from "./resolve.js";
+import { refusal, refusalReasons } from "./refusal.js";
+import { isAppEnabled } from "../platform/registry.js";
 
 export async function tenantContextHook(
   request: FastifyRequest,

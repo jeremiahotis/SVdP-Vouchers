@@ -1,8 +1,8 @@
 import Fastify from "fastify";
-import { registerOpenApi } from "./openapi";
-import { registerRoutes } from "./routes";
-import { authHook } from "./auth/hook";
-import { tenantContextHook } from "./tenancy/hook";
+import { registerOpenApi } from "./openapi.js";
+import { registerRoutes } from "./routes.js";
+import { authHook } from "./auth/hook.js";
+import { tenantContextHook } from "./tenancy/hook.js";
 
 const app = Fastify({ logger: true });
 

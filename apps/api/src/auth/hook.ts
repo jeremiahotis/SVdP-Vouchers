@@ -1,5 +1,5 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { verifyJwt } from "./jwt";
+import { verifyJwt } from "./jwt.js";
 
 function logAuthFailure(request: FastifyRequest, reason: string) {
   request.log.warn({

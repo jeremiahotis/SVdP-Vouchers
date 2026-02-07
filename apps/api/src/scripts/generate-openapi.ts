@@ -1,7 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import Fastify from "fastify";
-import { registerOpenApi } from "../openapi";
-import { registerRoutes } from "../routes";
+import { registerOpenApi } from "../openapi.js";
+import { registerRoutes } from "../routes.js";
 
 const app = Fastify({ logger: false });
 
