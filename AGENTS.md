@@ -11,6 +11,8 @@
 - This plugin runs inside a **Local by Flywheel** WordPress environment. Start/stop the site and access DB/logs via the Local UI.
 - There is no local build step or package manager in this repo. Edit files directly and refresh the site.
 - Example runtime check: load a page with `[svdp_voucher_request]` or `[svdp_cashier_station]` and confirm REST calls in the browser console.
+- **VoucherShyft API tests require Postgres in Docker Compose.** When running test scripts (for example `pnpm test:tenant`), run them inside the compose environment. Use `docker compose -f infra/docker/docker-compose.yml run --rm api-test pnpm test:tenant`. Do not assume `db` is resolvable on the host.
+- **Mandatory testing rule (repo-wide):** Always run the full relevant test suite for any change before considering the work complete. Do not skip tests. If tests fail, diagnose and fix. We do not release untested changes. Use Murat’s test designs as the source of truth for coverage.
 
 ## Coding Style & Naming Conventions
 - PHP and JS use 4-space indentation; keep braces and spacing consistent with existing files.

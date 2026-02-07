@@ -184,6 +184,51 @@
         },
         "responses": {
           "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/admin/tenants/{tenant_id}": {
+      "patch": {
+        "tags": [
+          "admin"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "host": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "tenant_slug": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "status": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "tenant_id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
             "description": "Default Response",
             "content": {
               "application/json": {
@@ -305,96 +350,6 @@
                   "required": [
                     "success",
                     "error",
-                    "correlation_id"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/admin/tenants/{tenant_id}": {
-      "patch": {
-        "tags": [
-          "admin"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "host": {
-                    "type": "string",
-                    "nullable": true
-                  },
-                  "tenant_slug": {
-                    "type": "string",
-                    "nullable": true
-                  },
-                  "status": {
-                    "type": "string",
-                    "nullable": true
-                  }
-                }
-              }
-            }
-          }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "tenant_id",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Default Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "enum": [
-                        true
-                      ]
-                    },
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "tenant_id": {
-                          "type": "string"
-                        },
-                        "host": {
-                          "type": "string"
-                        },
-                        "tenant_slug": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "status": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "tenant_id",
-                        "host",
-                        "status"
-                      ]
-                    },
-                    "correlation_id": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "data",
                     "correlation_id"
                   ]
                 }
