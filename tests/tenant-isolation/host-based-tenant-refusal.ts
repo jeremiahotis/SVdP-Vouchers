@@ -19,6 +19,7 @@ type TestAuthContext = {
 type ReplyCapture = FastifyReply & {
   statusCode?: number;
   body?: unknown;
+  headers?: Record<string, string>;
 };
 
 type LogEntry = {
@@ -45,8 +46,14 @@ function createReply(): ReplyCapture {
   return {
     statusCode: undefined,
     body: undefined,
+    headers: {},
     code(status: number) {
       this.statusCode = status;
+      return this;
+    },
+    header(name: string, value: string) {
+      this.headers = this.headers ?? {};
+      this.headers[name.toLowerCase()] = value;
       return this;
     },
     send(payload: unknown) {
@@ -102,12 +109,27 @@ function createRequest(params: {
 }
 
 function normalizeRefusal(body: unknown) {
-  const payload = body as { success?: boolean; reason?: string; correlation_id?: string };
+  const payload = parseRefusal(body);
   return {
     success: payload?.success,
     reason: payload?.reason,
     correlation_id: payload?.correlation_id ? "<correlation_id>" : null,
   };
+}
+
+function parseRefusal(body: unknown) {
+  if (typeof body === "string") {
+    try {
+      return JSON.parse(body) as { success?: boolean; reason?: string; correlation_id?: string };
+    } catch {
+      return {} as { success?: boolean; reason?: string; correlation_id?: string };
+    }
+  }
+  return (body ?? {}) as { success?: boolean; reason?: string; correlation_id?: string };
+}
+
+function refusalReason(body: unknown) {
+  return parseRefusal(body).reason;
 }
 
 async function run() {
@@ -202,10 +224,7 @@ async function run() {
     await tenantContextHook(mismatchRequest, mismatchReply);
 
     assert.equal(mismatchReply.statusCode, 200);
-    assert.equal(
-      (mismatchReply.body as { reason?: string })?.reason,
-      REFUSAL_REASONS.tenantContextMismatch,
-    );
+    assert.equal(refusalReason(mismatchReply.body), REFUSAL_REASONS.tenantContextMismatch);
 
     // Reject tenant_id provided via query/body.
     const queryTenantRequest = createRequest({
@@ -222,10 +241,7 @@ async function run() {
     await tenantContextHook(queryTenantRequest, queryTenantReply);
 
     assert.equal(queryTenantReply.statusCode, 200);
-    assert.equal(
-      (queryTenantReply.body as { reason?: string })?.reason,
-      REFUSAL_REASONS.tenantContextMismatch,
-    );
+    assert.equal(refusalReason(queryTenantReply.body), REFUSAL_REASONS.tenantContextMismatch);
 
     const bodyTenantRequest = createRequest({
       host: mismatchTenant.host,
@@ -241,10 +257,7 @@ async function run() {
     await tenantContextHook(bodyTenantRequest, bodyTenantReply);
 
     assert.equal(bodyTenantReply.statusCode, 200);
-    assert.equal(
-      (bodyTenantReply.body as { reason?: string })?.reason,
-      REFUSAL_REASONS.tenantContextMismatch,
-    );
+    assert.equal(refusalReason(bodyTenantReply.body), REFUSAL_REASONS.tenantContextMismatch);
 
     // AC4: non-membership returns NOT_A_MEMBER (expected to fail until implemented).
     const memberTenant = createTenant();
@@ -279,10 +292,7 @@ async function run() {
     await tenantContextHook(nonMemberRequest, nonMemberReply);
 
     assert.equal(nonMemberReply.statusCode, 200);
-    assert.equal(
-      (nonMemberReply.body as { reason?: string })?.reason,
-      "NOT_A_MEMBER",
-    );
+    assert.equal(refusalReason(nonMemberReply.body), "NOT_A_MEMBER");
 
     // Membership present should allow tenant context.
     const membership = createMembership({
@@ -311,10 +321,7 @@ async function run() {
     const missingAuthReply = createReply();
     await tenantContextHook(missingAuthRequest, missingAuthReply);
     assert.equal(missingAuthReply.statusCode, 200);
-    assert.equal(
-      (missingAuthReply.body as { reason?: string })?.reason,
-      REFUSAL_REASONS.tenantContextMismatch,
-    );
+    assert.equal(refusalReason(missingAuthReply.body), REFUSAL_REASONS.tenantContextMismatch);
 
     // AC1: missing tenantId claim returns TENANT_CONTEXT_MISMATCH.
     const missingClaimRequest = createRequest({
@@ -329,10 +336,7 @@ async function run() {
     const missingClaimReply = createReply();
     await tenantContextHook(missingClaimRequest, missingClaimReply);
     assert.equal(missingClaimReply.statusCode, 200);
-    assert.equal(
-      (missingClaimReply.body as { reason?: string })?.reason,
-      REFUSAL_REASONS.tenantContextMismatch,
-    );
+    assert.equal(refusalReason(missingClaimReply.body), REFUSAL_REASONS.tenantContextMismatch);
     const memberReply = createReply();
     await tenantContextHook(memberRequest, memberReply);
 
