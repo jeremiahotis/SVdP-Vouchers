@@ -1,6 +1,6 @@
 # Story 1.4: Minimal Audit Write Path (Append-Only)
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -20,14 +20,14 @@ so that later voucher workflows inherit auditability without rework.
 
 ## Tasks / Subtasks
 
-- [ ] Define audit event schema
-  - [ ] Append-only structure with `event_id`, `actor_id`, `tenant_id`, `timestamp`, `reason`, `correlation_id`
-- [ ] Implement audit write path
-  - [ ] Write on tenant resolution outcomes and admin actions
-  - [ ] Treat admin audit write failures as errors
-- [ ] Add tests
-  - [ ] Assert audit event written for admin action
-  - [ ] Assert refusal outcomes write audit event
+- [x] Define audit event schema
+  - [x] Append-only structure with `event_id`, `actor_id`, `tenant_id`, `timestamp`, `reason`, `correlation_id`
+- [x] Implement audit write path
+  - [x] Write on tenant resolution outcomes and admin actions
+  - [x] Treat admin audit write failures as errors
+- [x] Add tests
+  - [x] Assert audit event written for admin action
+  - [x] Assert refusal outcomes write audit event
 
 ## Dev Notes
 
@@ -58,12 +58,34 @@ GPT-5
 
 ### Debug Log References
 
-N/A
+- `docker compose -f "/Users/jeremiahotis/Local Sites/voucher-system/app/public/wp-content/plugins/voucher-shyft/infra/docker/docker-compose.yml" run --rm api-test pnpm tsx tests/integration/audit-write-path.ts`
+- `docker compose -f "/Users/jeremiahotis/Local Sites/voucher-system/app/public/wp-content/plugins/voucher-shyft/infra/docker/docker-compose.yml" run --rm --build api-test pnpm test:admin`
 
 ### Completion Notes List
 
-- Story scaffolded for append-only audit write path.
+- Confirmed audit events are append-only with correlation_id persisted.
+- Tenant resolution refusals and admin actions write audit events; admin audit failures return errors with `AUDIT_WRITE_FAILED`.
+- Audit timestamp is stored as `audit_events.created_at`; event_id is `audit_events.id` (UUID, non-null).
+- Integration tests cover admin action, refusal audit writes, and admin audit failure response codes.
+- Regression: `pnpm test:admin`
 
 ### File List
 
+- `apps/api/src/audit/write.ts`
+- `apps/api/src/tenancy/hook.ts`
+- `apps/api/src/admin/routes.ts`
+- `apps/api/src/observability/correlation.ts`
+- `apps/api/src/tenancy/refusal.ts`
+- `apps/api/db/migrations/006_add_correlation_id_to_audit_events.ts`
+- `apps/api/db/migrations/007_audit_events_event_id_not_null.ts`
+- `apps/api/openapi.admin.json`
+- `tests/integration/audit-write-path.ts`
+- `package.json`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `_bmad-output/atdd-checklist-1-4.md`
 - `_bmad-output/implementation-artifacts/1-4-minimal-audit-write-path-append-only.md`
+
+### Change Log
+
+- 2026-02-06: Verified audit write path and tests for Story 1.4.
+- 2026-02-06: Enforced non-null audit event IDs, clarified timestamp mapping, and hardened admin audit failure handling.

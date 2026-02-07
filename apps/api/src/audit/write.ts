@@ -1,3 +1,5 @@
+import type { Knex } from "knex";
+import { randomUUID } from "crypto";
 import { getDb } from "../db/client.js";
 
 export async function writeAuditEvent(params: {
@@ -7,14 +9,18 @@ export async function writeAuditEvent(params: {
   entityId?: string | null;
   reason?: string | null;
   metadata?: Record<string, unknown> | null;
+  correlationId?: string | null;
+  dbOverride?: Knex;
 }) {
-  await getDb()("audit_events").insert({
-    id: params.entityId ?? null,
+  const db = params.dbOverride ?? getDb();
+  await db("audit_events").insert({
+    id: randomUUID(),
     tenant_id: params.tenantId,
     actor_id: params.actorId,
     event_type: params.eventType,
     entity_id: params.entityId ?? null,
     reason: params.reason ?? null,
     metadata: params.metadata ?? null,
+    correlation_id: params.correlationId ?? null,
   });
 }

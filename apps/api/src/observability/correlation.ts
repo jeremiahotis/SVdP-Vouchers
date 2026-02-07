@@ -35,10 +35,7 @@ export function registerCorrelation(app: FastifyInstance) {
       );
     }
 
-    if ("correlation_id" in payload) {
-      return payload;
-    }
-
+    if ("correlation_id" in payload) return payload;
     return { ...payload, correlation_id: request.id };
   });
 
@@ -62,7 +59,7 @@ export function registerCorrelation(app: FastifyInstance) {
       "error",
     );
 
-    reply.code(statusCode).send({
+    const payload = JSON.stringify({
       success: false,
       error: {
         code: errorCode,
@@ -70,5 +67,10 @@ export function registerCorrelation(app: FastifyInstance) {
       },
       correlation_id: request.id,
     });
+
+    reply
+      .code(statusCode)
+      .header("content-type", "application/json")
+      .send(payload);
   });
 }
