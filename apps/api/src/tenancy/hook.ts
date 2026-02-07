@@ -3,6 +3,7 @@ import { APP_KEY } from "../config/app.js";
 import { resolveTenantIdByHost } from "./resolve.js";
 import { refusal, refusalReasons } from "./refusal.js";
 import { isAppEnabled } from "../platform/registry.js";
+import { isMember } from "./membership.js";
 
 export async function tenantContextHook(
   request: FastifyRequest,
@@ -21,23 +22,47 @@ export async function tenantContextHook(
     return;
   }
 
-  const tenantId = await resolveTenantIdByHost(host);
+  const tenantId = await resolveTenantIdByHost(host, request.db);
   if (!tenantId) {
     reply.code(200).send(refusal(refusalReasons.tenantNotFound, correlationId));
     return;
   }
 
-  const enabled = await isAppEnabled(tenantId, APP_KEY);
+  const enabled = await isAppEnabled(tenantId, APP_KEY, request.db);
   if (!enabled) {
     reply.code(200).send(refusal(refusalReasons.tenantNotFound, correlationId));
     return;
   }
 
-  const tenantClaim = request.authContext?.tenantId;
-  if (tenantClaim && tenantClaim !== tenantId) {
+  if (!request.authContext || !request.authContext.tenantId) {
     reply
       .code(200)
       .send(refusal(refusalReasons.tenantContextMismatch, correlationId));
+    return;
+  }
+
+  const tenantClaim = request.authContext.tenantId;
+  if (tenantClaim !== tenantId) {
+    reply
+      .code(200)
+      .send(refusal(refusalReasons.tenantContextMismatch, correlationId));
+    return;
+  }
+
+  const queryTenantId = (request.query as { tenant_id?: string } | undefined)?.tenant_id;
+  const bodyTenantId = (request.body as { tenant_id?: string } | undefined)?.tenant_id;
+  if (queryTenantId || bodyTenantId) {
+    reply
+      .code(200)
+      .send(refusal(refusalReasons.tenantContextMismatch, correlationId));
+    return;
+  }
+
+  const member = await isMember(tenantId, request.authContext.actorId, request.db);
+  if (!member) {
+    reply
+      .code(200)
+      .send(refusal(refusalReasons.notAMember, correlationId));
     return;
   }
 
