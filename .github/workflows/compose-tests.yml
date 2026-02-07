@@ -17,7 +17,12 @@ jobs:
           cp .env.example .env
           echo "GIT_SHA=${GITHUB_SHA}" >> .env
 
+      - name: Verify release gates doc
+        run: |
+          git ls-files --error-unmatch docs/RELEASE_GATES.md
+          test -s docs/RELEASE_GATES.md
+
       - name: Run compose tests
         run: |
           chmod +x infra/scripts/compose.sh
-          infra/scripts/compose.sh run --rm tests sh -c "pnpm test:db"
+          infra/scripts/compose.sh run --rm api-test pnpm test:db

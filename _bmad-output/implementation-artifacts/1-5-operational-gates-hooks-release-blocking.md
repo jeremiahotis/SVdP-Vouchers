@@ -1,6 +1,6 @@
 # Story 1.5: Operational Gates Hooks (Release-Blocking)
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -19,16 +19,16 @@ so that release readiness includes backup/restore and alert thresholds.
 
 ## Tasks / Subtasks
 
-- [ ] Create operational gates documentation
-  - [ ] Nightly backups (30 days)
-  - [ ] Weekly full backups (12 weeks)
-  - [ ] Monthly restore drill
-  - [ ] Disk utilization alert at 80%
-  - [ ] IO wait alert >20% for 5 minutes
-- [ ] Add CI hook
-  - [ ] CI fails if `docs/RELEASE_GATES.md` is missing
-- [ ] Add cutover readiness references
-  - [ ] Link to migration runbook and parity checks (from Epic 6)
+- [x] Create operational gates documentation
+  - [x] Nightly backups (30 days)
+  - [x] Weekly full backups (12 weeks)
+  - [x] Monthly restore drill
+  - [x] Disk utilization alert at 80%
+  - [x] IO wait alert >20% for 5 minutes
+- [x] Add CI hook
+  - [x] CI fails if `docs/RELEASE_GATES.md` is missing
+- [x] Add cutover readiness references
+  - [x] Link to migration runbook and parity checks (from Epic 6)
 
 ## Dev Notes
 
@@ -58,12 +58,35 @@ GPT-5
 
 ### Debug Log References
 
-N/A
+- `docker compose -f infra/docker/docker-compose.yml run --rm --build api-test pnpm test:db`
+- `pnpm test:release-gates`
 
 ### Completion Notes List
 
-- Story scaffolded for operational gates and CI enforcement.
+- Tightened CI gate to require tracked, non-empty `docs/RELEASE_GATES.md`.
+- Moved release-gate checks to `tests/integration/operational-gates.ts` and wired into `pnpm test:db`.
+- Clarified IO wait alert measurement in `docs/RELEASE_GATES.md`.
+- Updated ATDD checklist to reference `tests/integration/operational-gates.ts` and `pnpm test:release-gates`.
+- Updated tenant isolation test harness to parse JSON-string refusals.
+- Updated api-test Dockerfile to include `docs/RELEASE_GATES.md` and `.github/workflows` for integration checks.
+- Updated compose workflow to run `api-test` service for `pnpm test:db`.
+- Tests: `pnpm test:release-gates` (pass); `docker compose -f infra/docker/docker-compose.yml run --rm --build api-test pnpm test:db` (pass).
 
 ### File List
 
+- `.github/workflows/compose-tests.yml`
+- `_bmad-output/atdd-checklist-1-5-operational-gates-hooks-release-blocking.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `docs/RELEASE_GATES.md`
+- `infra/docker/api.test.Dockerfile`
+- `package.json`
+- `tests/integration/operational-gates.ts`
+- `tests/tenant-isolation/host-based-tenant-refusal.ts`
 - `_bmad-output/implementation-artifacts/1-5-operational-gates-hooks-release-blocking.md`
+
+### Change Log
+
+- 2026-02-06: Added release-gate documentation, CI presence check, and API tests for operational gates.
+- 2026-02-07: Tightened CI release-gate check, moved operational gate checks into integration tests, and clarified IO wait definition.
+- 2026-02-07: Fixed tenant isolation test harness and updated api-test Dockerfile for release-gate checks.
+- 2026-02-07: Updated compose workflow to use api-test for database test runs.
