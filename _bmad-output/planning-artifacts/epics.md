@@ -63,6 +63,7 @@ FR37a: During the 30-day WP reference window, the system must prevent all vouche
 FR37b: WP reference window is 30 days; after window, WP is archived/offlined per runbook.
 FR38: System provides tenant-scoped voucher list export for audit/support.
 FR39: System provides a tenant-scoped reconciliation summary export based on available redemption data (manual capture in MVP; import-enhanced later).
+FR40: Partner embedded issuance + lookup uses a tenant-scoped, partner-agency token (no user account required); token is form-specific, issue+lookup-own only, no auto-expiry, rate-limited at 20 req/min.
 
 ### NonFunctional Requirements
 
@@ -157,6 +158,7 @@ FR37a: Epic 6 - 30-day WP write-block enforcement + alerts
 FR37b: Epic 6 - WP archive/offline after window
 FR38: Epic 5 - Tenant-scoped voucher export
 FR39: Epic 5 - Reconciliation summary export
+FR40: Epic 1 - Partner token access (embedded issuance + lookup own)
 
 ## Epic List
 
@@ -168,9 +170,13 @@ Tenant resolution is enforceable; platform registry is authoritative; platform a
 Stewards can issue vouchers within policy, with duplicate checks and authorized overrides.
 **FRs covered:** FR16–FR24 (depends on FR31–FR32 from Epic 4)
 
+**Note:** Issuance endpoints must also support partner-token issuance (Story 1.6) scoped to the partner agency’s own vouchers only.
+
 ### Epic 3: Cashier Redemption Flow
 Cashiers can redeem vouchers quickly with receipt capture and clear refusals.
 **FRs covered:** FR25–FR28
+
+**Note:** Lookup flows must enforce partner-token scoping when partner tokens are used (partner-issued vouchers only).
 
 ## Epic 3: Cashier Redemption Flow
 
@@ -282,6 +288,25 @@ So that I can review compliance without making changes.
 **And** mutation routes return refusal `NOT_AUTHORIZED_FOR_ACTION`.
 **And** auditor cannot access platform admin routes (401/403).
 **And** auditor reads emit an audit/access event (or structured log) including actor_id, tenant_id, correlation_id.
+
+### Story 4.4: Partner Agency Tokens + Embed Form Management
+
+As a store admin,
+I want to manage partner agencies and generate embedded voucher forms,
+So that partners can issue and look up their own vouchers without user accounts.
+
+**Acceptance Criteria:**
+
+**Given** a store admin in an active tenant,
+**When** they create or manage a partner agency,
+**Then** they can generate a form-specific token and embed code for that partner.
+**And** the admin can configure per-partner form settings:
+  - allowed voucher types
+  - custom introduction text (<p>, optional)
+  - custom rules & requirements (<ul>, optional)
+**And** the admin can rotate or revoke tokens (no automatic expiry).
+**And** partner agencies can only issue/lookup vouchers created with their token.
+**And** partner token actions are logged and audited with partner agency identifiers.
 
 ### Epic 5: Audit Surfaces + Exports (MVP)
 Tenant-scoped export endpoints plus audit viewing surfaces for authorized roles.
@@ -505,6 +530,24 @@ So that release readiness includes backup/restore and alert thresholds.
 **When** Epic 1 is completed,
 **Then** documentation/runbook hooks exist for nightly backups, weekly full backups, monthly restore drills, disk alert at 80%, and IO wait >20% for 5 minutes.
 **And** a release-gate checklist file exists (e.g., docs/RELEASE_GATES.md) and CI fails if it is missing.
+
+### Story 1.6: Partner Token Access (Embedded Issuance + Lookup)
+
+As a release manager,
+I want partner agencies to issue and look up their own vouchers via embedded forms without user accounts,
+So that partner workflows remain viable while preserving tenant isolation and auditability.
+
+**Acceptance Criteria:**
+
+**Given** a tenant-scoped partner agency token,
+**When** a partner submits a voucher issuance via an embedded form,
+**Then** the request is authorized without JWT membership and issues a voucher scoped to that partner agency within the tenant.
+**And** partner tokens are form-specific and limited to voucher issuance + voucher lookup for that partner agency’s own vouchers only.
+**And** token does not expire automatically; rotation/revocation requires explicit admin action.
+**And** partner token requests are rate-limited at 20 req/min per token with 429 + Retry-After.
+**And** partner-token requests include correlation_id and are logged with partner agency identifier.
+**And** any attempt to access vouchers outside the partner agency scope is refused with `NOT_AUTHORIZED_FOR_ACTION` (HTTP 200 refusal).
+**And** audit events record partner-issued voucher actions with partner agency identifier.
 
 ## Epic 2: Steward Voucher Issuance + Duplicate Governance
 

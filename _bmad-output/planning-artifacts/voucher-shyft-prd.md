@@ -167,6 +167,17 @@ VoucherShyft is a standalone Shyft Ecosystem module that replaces the WordPress 
 **Climax:** Jordan is about to take an action (void, override, or admin edit). The system must make the active store unmistakable and refuse any action if tenant context/membership is not correct.  
 **Resolution:** Jordan moves quickly between stores without second‑guessing, and the system prevents “wrong store” mistakes by design. Jordan feels safe and efficient, not nervous.
 
+### Partner agency issues + looks up vouchers via embedded form (no user account)
+**User:** Partner agency staff  
+**Opening scene:** A partner agency needs to issue vouchers from their own website without creating user accounts.  
+**Rising action:**  
+- Partner uses a store‑provided embedded form that includes a tenant‑scoped, partner‑specific token.  
+- The form enforces allowed voucher types and displays partner‑specific introduction text and rules.  
+- On submit, the API issues a voucher scoped to that partner agency within the tenant.  
+- Partner can look up vouchers they issued to confirm status.  
+**Climax:** A lookup attempts to access a voucher not issued by that partner.  
+**Resolution:** The system refuses access; partners can only issue/lookup their own vouchers. The partner can operate without accounts while tenant isolation and auditability remain intact.
+
 ### External system consumes VoucherShyft API (read/reporting)
 **User:** Ravi, partner system analyst  
 **Opening scene:** Ravi maintains a reporting or partner system that needs voucher redemption and reconciliation data to produce weekly summaries, without manual exports.  
@@ -186,7 +197,8 @@ VoucherShyft is a standalone Shyft Ecosystem module that replaces the WordPress 
 - Redemption flow must be fast, with refusal reasons that protect staff from conflict.  
 - Admin changes must apply immediately within a tenant without cross‑tenant side effects.  
 - Cross‑tenant users need safe switching with unmistakable active‑tenant cues.  
-- External integrations must be tenant‑scoped, refusal‑aware, and correlation‑ID traceable.
+- External integrations must be tenant‑scoped, refusal‑aware, and correlation‑ID traceable.  
+- Partner embedded issuance + lookup must be token‑scoped to the partner agency’s own vouchers only.  
 - Business denials are refusals (HTTP 200 `{ success:false, reason }`) and are tracked separately from errors.
 
 ## Domain-Specific Requirements
@@ -265,6 +277,7 @@ VoucherShyft is a multi‑tenant B2B web app + API. Stores are tenants. Every re
 - **District Admin (cross‑tenant):** read access across assigned stores for support; elevated actions only if explicitly granted and always within active tenant.
 - **Auditor (read‑only):** view vouchers, redemptions, config change history, reconciliation; export reports; **no write actions**.
 - **Integration (service account, tenant‑scoped):** read‑only endpoints for reporting/reconciliation initially; write endpoints only if explicitly designed (e.g., import submission) with tight scoping and idempotency.
+- **Partner (embedded token):** issue vouchers + look up vouchers issued by that partner only; no user account; rate‑limited; no admin/config access.
 
 ### Subscription Tiers / Entitlement
 - No pricing tiers at launch. Entitlement is managed via `platform.tenant_apps` only.  
@@ -293,6 +306,7 @@ VoucherShyft is a multi‑tenant B2B web app + API. Stores are tenants. Every re
 - Cashier redeems voucher at POS (fast path + recovery)
 - Admin configures store, catalog, and rules (tenant‑scoped, minimal config)
 - Cross‑tenant user switches tenants safely (membership‑scoped, read + basic support)
+- Partner agency issues + looks up their own vouchers via embedded form (no user account; tenant‑scoped partner token)
 
 **Must‑Have Capabilities:**
 - Tenancy spine: stores‑as‑tenants; host/JWT‑derived context; membership‑scoped auth; one‑tenant‑per‑request.
@@ -356,6 +370,13 @@ VoucherShyft is a multi‑tenant B2B web app + API. Stores are tenants. Every re
 - FR13: App enablement is controlled by the platform tenant registry (`platform.tenant_apps`).
 - FR14: Disabled tenants receive a refusal state (per FR0) for VoucherShyft routes (no partial access).
 - FR15: App enablement is evaluated on every request that requires VoucherShyft access.
+
+### Partner Embedded Access (No‑Account)
+- FR40: Partner embedded issuance + lookup uses a tenant‑scoped, partner‑agency token (no user account required).
+  - Token is limited to voucher issuance and voucher lookup for that partner’s own vouchers only.
+  - Token is form‑specific and configured per partner agency.
+  - Token does not expire automatically; rotation/revocation require explicit admin action.
+  - Default rate limit: 20 req/min per token.
 
 ### Voucher Lifecycle (request/issue/void/lookup)
 - FR16: Stewards can initiate and issue vouchers within allowed voucher types for their tenant (or initiate‑only if issuance is restricted by role).
@@ -438,7 +459,7 @@ VoucherShyft is a multi‑tenant B2B web app + API. Stores are tenants. Every re
 
 ### Integration
 - **API versioning:** versioned base path (e.g., `/v1`) with documented backward‑compat guarantees for a major version.
-- **Rate limits (per tenant):** default **60 req/min/user** for UI calls; service accounts configurable (e.g., **300 req/min**) with burst control.
+- **Rate limits (per tenant):** default **60 req/min/user** for UI calls; service accounts configurable (e.g., **300 req/min**) with burst control; **partner tokens default 20 req/min per token**.
 - **Rate‑limit contract:** requests over limit return **HTTP 429** with `Retry-After`.
 - **Change policy:** breaking changes require a new major version; deprecation notice **≥ 90 days** for public/integration endpoints.
 

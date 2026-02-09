@@ -56,6 +56,14 @@
 - VoucherShyft availability is controlled by `platform.tenant_apps`.
 - Disabled tenants receive HTTP 200 refusal `{ success:false, reason:"TENANT_NOT_FOUND" }` and logs record `APP_DISABLED` (no tenant enumeration to clients).
 
+## Partner Tokens (Embedded Form)
+- **Purpose:** allow partner agencies to issue and look up their own vouchers without user accounts.
+- **Scope:** tenant‑scoped and partner‑agency‑scoped; **form‑specific** tokens per partner agency.
+- **Allowed actions:** voucher issuance + lookup **only for vouchers issued by that partner**.
+- **Auth behavior:** partner token bypasses JWT membership checks but does **not** grant any admin or cross‑partner access.
+- **Rate limit:** 20 req/min per token with 429 + Retry‑After.
+- **Lifecycle:** no auto‑expiry; rotation/revocation requires explicit admin action.
+
 ## Audit Requirements
 - Append-only audit events for issuance, override, redemption, void, and config changes.
 - Audit events include: event_id, actor, tenant, timestamp, reason where applicable, correlation_id.

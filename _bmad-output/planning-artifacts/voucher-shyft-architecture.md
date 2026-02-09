@@ -84,6 +84,7 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 - Migration + cutover enforcement with verifiable gates.
 - UX governance: Decision Surface structure, Quiet Authority, stillness discipline.
 - Test gate posture: cutover readiness requires tenant isolation tests, refusal contract checks, migration parity suite, and 0 successful legacy writes during the 30-day window.
+- Partner embedded issuance via form-specific tokens with strict partner scope and rate limits.
 
 ## Starter Template Evaluation
 
@@ -135,6 +136,10 @@ This preserves ecosystem invariants (host/JWT tenant context, refusal contract, 
 - **Choice:** Hybrid (SQL migrations + lightweight query builder).  
 - **Rationale:** Canonical schema is defined by SQL migrations + strict constraints. Use a lightweight query layer (Knex query builder or SQL tagged templates), but no “model magic” that bypasses tenant helpers.
 
+**Decision 1b — Partner agency + token entities**  
+- **Choice:** Add tenant-scoped `partner_agencies` and `partner_tokens` with explicit linkage; vouchers issued via partner tokens record `partner_agency_id`.  
+- **Rationale:** Supports partner embedded issuance + lookup with strict scoping and audit attribution.
+
 **Decision 2 — Data validation strategy**  
 - **Choice:** Both API validation + DB constraints.  
 - **Rationale:** Zod for input shape, refusal payloads, shared types; DB constraints for tenant scoping, uniqueness, foreign keys, and irreversible state invariants.
@@ -175,6 +180,11 @@ This preserves ecosystem invariants (host/JWT tenant context, refusal contract, 
 - **Choice:** Canonical host pattern is `{tenant_slug}.voucher.{root_domain}` (e.g., `store-a.voucher.shyft.org`).  
 - **Choice:** Tenant lookup uses **exact host match** in `platform.tenants` (host header → exact lookup → tenant_id).  
 - **Enforcement:** Unknown host returns HTTP 200 refusal `{ success:false, reason:"TENANT_NOT_FOUND", correlation_id }` with no tenant enumeration (including timing/messaging). Host/JWT mismatch returns refusal `{ success:false, reason:"TENANT_CONTEXT_MISMATCH", correlation_id }`. Tenant switch requires host change.
+
+**Decision 9c — Partner embedded token access (form-specific)**  
+- **Choice:** Form-specific, tenant-scoped partner tokens with limited actions (issue + lookup own vouchers only).  
+- **Rationale:** Enables embedded partner issuance without user accounts while preserving tenant isolation and auditability.  
+- **Constraints:** Tokens do not auto-expire; rotation/revocation by admin only; default rate limit 20 req/min per token; audit logs include partner agency identifier.
 
 ### Category 3: API & Communication
 
@@ -324,6 +334,7 @@ This preserves ecosystem invariants (host/JWT tenant context, refusal contract, 
 **Tenant context**
 - Assert tenant context once per request (host/JWT match), stored in request-scoped context
 - Repos require tenant context; root DB access forbidden
+- Partner-token requests establish tenant + partner agency context from the token and are limited to issue/lookup own vouchers only.
 
 **Validation timing**
 - Input validation at API boundary using Zod (schema-driven)
