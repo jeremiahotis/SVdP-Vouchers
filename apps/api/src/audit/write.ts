@@ -9,6 +9,7 @@ export async function writeAuditEvent(params: {
   entityId?: string | null;
   reason?: string | null;
   metadata?: Record<string, unknown> | null;
+  partnerAgencyId?: string | null;
   correlationId?: string | null;
   dbOverride?: Knex;
 }) {
@@ -21,6 +22,7 @@ export async function writeAuditEvent(params: {
     entity_id: params.entityId ?? null,
     reason: params.reason ?? null,
     metadata: params.metadata ?? null,
+    partner_agency_id: params.partnerAgencyId ?? null,
     correlation_id: params.correlationId ?? null,
   });
 }
