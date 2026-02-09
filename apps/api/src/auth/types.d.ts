@@ -7,5 +7,10 @@ declare module "fastify" {
       tenantId: string;
       roles: string[];
     };
+    partnerContext?: {
+      tokenId: string;
+      tenantId: string;
+      partnerAgencyId: string;
+    };
   }
 }

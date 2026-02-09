@@ -50,6 +50,7 @@ VoucherShyft is a standalone module that delivers dignity‑first voucher workfl
 - Vincentian stewards requesting vouchers.
 - Cashiers redeeming vouchers at POS.
 - Store admins managing catalog availability, rules, and staff.
+- Partner agency staff issuing vouchers via embedded form.
 - Managers/auditors handling overrides and review contexts.
 - Platform admins operating VoucherShyft platform admin.
 - Legacy WP reference‑only operators (temporary, 30‑day window).
@@ -390,6 +391,28 @@ flowchart TD
 
 ---
 
+### 4) Partner Embedded Issuance + Lookup (No Account)
+**Scope:** Partner agency issues vouchers from its own website using a form-specific token; can look up only vouchers it issued.
+
+```mermaid
+flowchart TD
+  A[Partner opens embedded form] --> B[Form shows intro + rules]
+  B --> C[Select allowed voucher type]
+  C --> D[Enter required identity fields]
+  D --> E[Submit issuance]
+  E --> F[Issue voucher under partner agency scope]
+  F --> G[Success: voucher issued + reference ID]
+
+  H[Partner enters voucher ID for lookup] --> I{Issued by this partner?}
+  I -- Yes --> J[Show status (read-only)]
+  I -- No --> K[Refusal: NOT_AUTHORIZED_FOR_ACTION]
+```
+
+**Refusal-heavy scenarios included:**
+- “Not authorized for action” when attempting to access non-partner vouchers
+
+---
+
 ### Journey Patterns
 - **Search → Select → Lane:** Person-first search leads into a single guided lane with one primary action.
 - **Refusal vs Error split:** Refusals are firm, neutral, next-step guided; errors are system problems with correlation_id.
@@ -457,6 +480,18 @@ Use shadcn/ui primitives for all base UI (buttons, inputs, cards, tabs, badges, 
 **Usage:** Furniture/clothing selection.  
 **Contract:** tenant‑scoped catalog only; emergency mode restricts to clothing categories; no free‑text items.
 
+#### 9) PartnerAgencyManager
+**Purpose:** Store admin surface to manage partner agencies, tokens, and embed code.  
+**Usage:** Tenant admin settings.  
+**States:** list, create/edit, token rotate/revoke, embed preview.  
+**Contract:** per‑partner form settings (allowed voucher types, intro text, rules list); generates form-specific token + embed snippet.
+
+#### 10) PartnerEmbedForm
+**Purpose:** Embedded partner issuance + lookup form (no user account).  
+**Usage:** Partner agency website.  
+**States:** idle, working, success, refusal, error.  
+**Contract:** token-scoped; issue + lookup own only; refusal for non-partner vouchers; no access to admin-only actions.
+
 ### Component Implementation Strategy
 - Build custom components on top of shadcn primitives using Shyft tokens only.
 - Enforce Decision Surface layout and refusal/error semantics through component contracts.
@@ -473,6 +508,8 @@ Use shadcn/ui primitives for all base UI (buttons, inputs, cards, tabs, badges, 
 - StartVoucherGate
 - CatalogPickerPanel
 - IdentityPanel (Cashier summary + Steward capture)
+- PartnerAgencyManager
+- PartnerEmbedForm
 
 **Phase 2 (early growth):**
 - AuditEventTable (read‑only)

@@ -5,7 +5,7 @@ This directory contains implementation-ready story files for the dev agent.
 ## Story Status
 
 ### Completed Stories ✅
-- Epic 1: All stories completed
+- Epic 1: Stories 1.0–1.5 completed (1.6 ready)
 - Epic 2: All stories completed
 - Epic 3: All stories completed
 - Epic 4: Story 4.1 completed
@@ -16,6 +16,8 @@ This directory contains implementation-ready story files for the dev agent.
 **Next Story:** [story-5.2-billing-math-on-receipt-import.md](story-5.2-billing-math-on-receipt-import.md)
 
 Then continue in order:
+- [story-1.6-partner-token-access-embedded-issuance-lookup.md](story-1.6-partner-token-access-embedded-issuance-lookup.md)
+- [story-4.4-partner-form-customization.md](story-4.4-partner-form-customization.md)
 - [story-5.3-emergency-overrides.md](story-5.3-emergency-overrides.md)
 - [story-5.4-coats-issuance.md](story-5.4-coats-issuance.md)
 - [story-6.1-weekly-csv-import.md](story-6.1-weekly-csv-import.md)
