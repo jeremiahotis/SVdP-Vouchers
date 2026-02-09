@@ -47,7 +47,7 @@ development_status:
   1-3-correlation-ids-refusal-error-metrics-split: review
   1-4-minimal-audit-write-path-append-only: done
   1-5-operational-gates-hooks-release-blocking: done
-  1-6-partner-token-access-embedded-issuance-lookup: review
+  1-6-partner-token-access-embedded-issuance-lookup: done
   epic-1-retrospective: optional
 
   epic-2: backlog
