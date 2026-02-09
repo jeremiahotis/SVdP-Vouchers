@@ -375,7 +375,17 @@ class SVDP_Vouchers_Plugin
             return $result; // Let WordPress handle other routes normally
         }
 
-        if ($this->is_public_rest_route($rest_route) && !is_user_logged_in()) {
+        if ($this->is_public_rest_route($rest_route)) {
+            // For public routes, we allow access regardless of nonce status
+            // This fixes the "Cookie failed" error where logged-in users (Cashiers/Admins)
+            // fail nonce validation but should still be able to use public endpoints.
+            
+            if (is_user_logged_in()) {
+                // User is authenticated via cookie, bypass WP's strict nonce check for these public routes
+                return true;
+            }
+
+            // For anonymous users, remove nonce headers to prevent invalid nonce errors
             unset($_SERVER['HTTP_X_WP_NONCE']);
             if (isset($_REQUEST['_wpnonce'])) {
                 unset($_REQUEST['_wpnonce']);
