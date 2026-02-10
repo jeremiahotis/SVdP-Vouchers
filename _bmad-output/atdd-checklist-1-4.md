@@ -1,364 +1,206 @@
-# ATDD Checklist - Epic {epic_num}, Story {story_num}: {story_title}
+# ATDD Checklist - Epic 1, Story 1-4: Minimal Audit Write Path (Append-Only)
 
-**Date:** {date}
-**Author:** {user_name}
-**Primary Test Level:** {primary_level}
+**Date:** 2026-02-10
+**Author:** Jeremiah
+**Primary Test Level:** API (integration)
 
 ---
 
 ## Story Summary
 
-{Brief 2-3 sentence summary of the user story}
+Append-only audit events must be recorded for tenant resolution outcomes and admin actions so auditability exists before voucher workflows expand. Audit writes must include correlation IDs and treat admin audit write failures as errors.
 
-**As a** {user_role}
-**I want** {feature_description}
-**So that** {business_value}
+**As a** compliance steward
+**I want** append-only audit events written for tenant/auth/admin actions
+**So that** later voucher workflows inherit auditability without rework
 
 ---
 
 ## Acceptance Criteria
 
-{List all testable acceptance criteria from the story}
-
-1. {Acceptance criterion 1}
-2. {Acceptance criterion 2}
-3. {Acceptance criterion 3}
+1. Given tenant resolution outcomes (success/refusal reason), app enablement refusals, or admin create/enable actions, when those actions occur, then an append-only audit event is written with event_id, actor, tenant, timestamp, reason (if applicable), and correlation_id.
+2. Audit write failure is treated as an error for admin actions.
+3. A test asserts audit event creation for at least one admin action.
 
 ---
 
 ## Failing Tests Created (RED Phase)
 
-### E2E Tests ({e2e_test_count} tests)
+### E2E Tests (0 tests)
 
-**File:** `{e2e_test_file_path}` ({line_count} lines)
+None. API-only story.
 
-{List each E2E test with its current status and expected failure reason}
+### API Tests (4 tests)
 
-- ✅ **Test:** {test_name}
-  - **Status:** RED - {failure_reason}
-  - **Verifies:** {what_this_test_validates}
+**File:** `tests/integration/audit-write-path.ts` (305 lines)
 
-### API Tests ({api_test_count} tests)
+**Test:** admin tenant create writes audit event
+**Status:** RED (pre-implementation). Currently GREEN on this branch.
+**Verifies:** audit event exists with actor_id, tenant_id, timestamp, correlation_id after admin tenant creation.
 
-**File:** `{api_test_file_path}` ({line_count} lines)
+**Test:** tenant refusal writes audit event
+**Status:** RED (pre-implementation). Currently GREEN on this branch.
+**Verifies:** refusal outcomes write audit event with reason and correlation_id.
 
-{List each API test with its current status and expected failure reason}
+**Test:** app-disabled refusal writes audit event
+**Status:** RED (pre-implementation). Currently GREEN on this branch.
+**Verifies:** app enablement refusal writes audit event with reason and correlation_id.
 
-- ✅ **Test:** {test_name}
-  - **Status:** RED - {failure_reason}
-  - **Verifies:** {what_this_test_validates}
+**Test:** admin audit failure returns error
+**Status:** RED (pre-implementation). Currently GREEN on this branch.
+**Verifies:** admin audit insert failure surfaces `AUDIT_WRITE_FAILED` and returns error response.
 
-### Component Tests ({component_test_count} tests)
+### Component Tests (0 tests)
 
-**File:** `{component_test_file_path}` ({line_count} lines)
-
-{List each component test with its current status and expected failure reason}
-
-- ✅ **Test:** {test_name}
-  - **Status:** RED - {failure_reason}
-  - **Verifies:** {what_this_test_validates}
+None. No UI components involved.
 
 ---
 
 ## Data Factories Created
 
-{List all data factory files created with their exports}
+No new factories required. Existing factories are available and recommended for future audit tests.
 
-### {Entity} Factory
+**Existing Factory:** `tests/support/fixtures/factories/tenant-factory.ts`
+**Exports:** `createTenant`, `createTenantApp`, `createMembership`
 
-**File:** `tests/support/factories/{entity}.factory.ts`
-
-**Exports:**
-
-- `create{Entity}(overrides?)` - Create single entity with optional overrides
-- `create{Entity}s(count)` - Create array of entities
-
-**Example Usage:**
-
-```typescript
-const user = createUser({ email: 'specific@example.com' });
-const users = createUsers(5); // Generate 5 random users
-```
+**Existing Factory:** `tests/support/fixtures/factories/user-factory.ts`
+**Exports:** `UserFactory` (with `createUser` and `cleanup`)
 
 ---
 
 ## Fixtures Created
 
-{List all test fixture files created with their fixture names and descriptions}
+No new fixtures required for this story.
 
-### {Feature} Fixtures
-
-**File:** `tests/support/fixtures/{feature}.fixture.ts`
-
-**Fixtures:**
-
-- `{fixtureName}` - {description_of_what_fixture_provides}
-  - **Setup:** {what_setup_does}
-  - **Provides:** {what_test_receives}
-  - **Cleanup:** {what_cleanup_does}
-
-**Example Usage:**
-
-```typescript
-import { test } from './fixtures/{feature}.fixture';
-
-test('should do something', async ({ {fixtureName} }) => {
-  // {fixtureName} is ready to use with auto-cleanup
-});
-```
+**Existing Fixture:** `tests/support/fixtures/index.ts`
+**Fixture:** `userFactory` with auto-cleanup stub (no DB delete yet)
 
 ---
 
 ## Mock Requirements
 
-{Document external services that need mocking and their requirements}
-
-### {Service Name} Mock
-
-**Endpoint:** `{HTTP_METHOD} {endpoint_url}`
-
-**Success Response:**
-
-```json
-{
-  {success_response_example}
-}
-```
-
-**Failure Response:**
-
-```json
-{
-  {failure_response_example}
-}
-```
-
-**Notes:** {any_special_mock_requirements}
+None. DB-only audit writes. The integration test uses a temporary DB trigger (`audit_fail_trigger`) to simulate insert failures.
 
 ---
 
 ## Required data-testid Attributes
 
-{List all data-testid attributes required in UI implementation for test stability}
-
-### {Page or Component Name}
-
-- `{data-testid-name}` - {description_of_element}
-- `{data-testid-name}` - {description_of_element}
-
-**Implementation Example:**
-
-```tsx
-<button data-testid="login-button">Log In</button>
-<input data-testid="email-input" type="email" />
-<div data-testid="error-message">{errorText}</div>
-```
+Not applicable. API-only story.
 
 ---
 
 ## Implementation Checklist
 
-{Map each failing test to concrete implementation tasks that will make it pass}
+### Test: admin tenant create writes audit event
 
-### Test: {test_name_1}
-
-**File:** `{test_file_path}`
+**File:** `tests/integration/audit-write-path.ts`
 
 **Tasks to make this test pass:**
+1. Add append-only `audit_events` schema with non-null `event_id` and `created_at`.
+2. Write audit event on admin tenant creation with actor_id, tenant_id, correlation_id.
+3. Ensure response includes correlation_id and audit event is persisted.
+4. Run test: `docker compose -f infra/docker/docker-compose.yml run --rm api-test pnpm tsx tests/integration/audit-write-path.ts`
+5. Mark test green after passing.
 
-- [ ] {Implementation task 1}
-- [ ] {Implementation task 2}
-- [ ] {Implementation task 3}
-- [ ] Add required data-testid attributes: {list_of_testids}
-- [ ] Run test: `{test_execution_command}`
-- [ ] ✅ Test passes (green phase)
+**Estimated Effort:** 2-3 hours
 
-**Estimated Effort:** {effort_estimate} hours
+### Test: tenant refusal writes audit event
 
----
-
-### Test: {test_name_2}
-
-**File:** `{test_file_path}`
+**File:** `tests/integration/audit-write-path.ts`
 
 **Tasks to make this test pass:**
+1. Emit audit event on tenant resolution refusal with reason and correlation_id.
+2. Persist audit event without mutation or overwrite.
+3. Run test: `docker compose -f infra/docker/docker-compose.yml run --rm api-test pnpm tsx tests/integration/audit-write-path.ts`
+4. Mark test green after passing.
 
-- [ ] {Implementation task 1}
-- [ ] {Implementation task 2}
-- [ ] {Implementation task 3}
-- [ ] Add required data-testid attributes: {list_of_testids}
-- [ ] Run test: `{test_execution_command}`
-- [ ] ✅ Test passes (green phase)
+**Estimated Effort:** 1-2 hours
 
-**Estimated Effort:** {effort_estimate} hours
+### Test: app-disabled refusal writes audit event
+
+**File:** `tests/integration/audit-write-path.ts`
+
+**Tasks to make this test pass:**
+1. Emit audit event when app enablement is denied.
+2. Include reason and correlation_id on audit event.
+3. Run test: `docker compose -f infra/docker/docker-compose.yml run --rm api-test pnpm tsx tests/integration/audit-write-path.ts`
+4. Mark test green after passing.
+
+**Estimated Effort:** 1-2 hours
+
+### Test: admin audit failure returns error
+
+**File:** `tests/integration/audit-write-path.ts`
+
+**Tasks to make this test pass:**
+1. Treat audit insert failures during admin actions as errors.
+2. Return `AUDIT_WRITE_FAILED` in error response with correlation_id.
+3. Run test: `docker compose -f infra/docker/docker-compose.yml run --rm api-test pnpm tsx tests/integration/audit-write-path.ts`
+4. Mark test green after passing.
+
+**Estimated Effort:** 1-2 hours
 
 ---
 
 ## Running Tests
 
 ```bash
-# Run all failing tests for this story
-{test_command_all}
+# Run all admin integration tests (includes audit write path)
+docker compose -f infra/docker/docker-compose.yml run --rm api-test pnpm test:admin
 
-# Run specific test file
-{test_command_specific_file}
+# Run the audit write path test only
+docker compose -f infra/docker/docker-compose.yml run --rm api-test pnpm tsx tests/integration/audit-write-path.ts
 
-# Run tests in headed mode (see browser)
-{test_command_headed}
-
-# Debug specific test
-{test_command_debug}
-
-# Run tests with coverage
-{test_command_coverage}
+# Headed/debug/coverage are not applicable for API-only tests in this repo
 ```
 
 ---
 
 ## Red-Green-Refactor Workflow
 
-### RED Phase (Complete) ✅
+### RED Phase (Historical)
 
-**TEA Agent Responsibilities:**
+Tests were authored after implementation in this repo. RED phase cannot be demonstrated on this branch without reverting the audit code.
 
-- ✅ All tests written and failing
-- ✅ Fixtures and factories created with auto-cleanup
-- ✅ Mock requirements documented
-- ✅ data-testid requirements listed
-- ✅ Implementation checklist created
+### GREEN Phase (DEV Team)
 
-**Verification:**
+Follow the implementation checklist above. Run the specific test after each change and keep failures actionable.
 
-- All tests run and fail as expected
-- Failure messages are clear and actionable
-- Tests fail due to missing implementation, not test bugs
+### REFACTOR Phase (DEV Team)
 
----
-
-### GREEN Phase (DEV Team - Next Steps)
-
-**DEV Agent Responsibilities:**
-
-1. **Pick one failing test** from implementation checklist (start with highest priority)
-2. **Read the test** to understand expected behavior
-3. **Implement minimal code** to make that specific test pass
-4. **Run the test** to verify it now passes (green)
-5. **Check off the task** in implementation checklist
-6. **Move to next test** and repeat
-
-**Key Principles:**
-
-- One test at a time (don't try to fix all at once)
-- Minimal implementation (don't over-engineer)
-- Run tests frequently (immediate feedback)
-- Use implementation checklist as roadmap
-
-**Progress Tracking:**
-
-- Check off tasks as you complete them
-- Share progress in daily standup
-- Mark story as IN PROGRESS in `bmm-workflow-status.md`
-
----
-
-### REFACTOR Phase (DEV Team - After All Tests Pass)
-
-**DEV Agent Responsibilities:**
-
-1. **Verify all tests pass** (green phase complete)
-2. **Review code for quality** (readability, maintainability, performance)
-3. **Extract duplications** (DRY principle)
-4. **Optimize performance** (if needed)
-5. **Ensure tests still pass** after each refactor
-6. **Update documentation** (if API contracts change)
-
-**Key Principles:**
-
-- Tests provide safety net (refactor with confidence)
-- Make small refactors (easier to debug if tests fail)
-- Run tests after each change
-- Don't change test behavior (only implementation)
-
-**Completion:**
-
-- All tests pass
-- Code quality meets team standards
-- No duplications or code smells
-- Ready for code review and story approval
-
----
-
-## Next Steps
-
-1. **Share this checklist and failing tests** with the dev workflow (manual handoff)
-2. **Review this checklist** with team in standup or planning
-3. **Run failing tests** to confirm RED phase: `{test_command_all}`
-4. **Begin implementation** using implementation checklist as guide
-5. **Work one test at a time** (red → green for each)
-6. **Share progress** in daily standup
-7. **When all tests pass**, refactor code for quality
-8. **When refactoring complete**, manually update story status to 'done' in sprint-status.yaml
+Refactor only after all audit tests pass. Keep audit events append-only and correlation_id intact.
 
 ---
 
 ## Knowledge Base References Applied
 
-This ATDD workflow consulted the following knowledge fragments:
-
-- **fixture-architecture.md** - Test fixture patterns with setup/teardown and auto-cleanup using Playwright's `test.extend()`
-- **data-factories.md** - Factory patterns using `@faker-js/faker` for random test data generation with overrides support
-- **component-tdd.md** - Component test strategies using Playwright Component Testing
-- **network-first.md** - Route interception patterns (intercept BEFORE navigation to prevent race conditions)
-- **test-quality.md** - Test design principles (Given-When-Then, one assertion per test, determinism, isolation)
-- **test-levels-framework.md** - Test level selection framework (E2E vs API vs Component vs Unit)
-
-See `tea-index.csv` for complete knowledge fragment mapping.
+- `fixture-architecture.md`
+- `data-factories.md`
+- `component-tdd.md`
+- `network-first.md`
+- `test-quality.md`
+- `test-healing-patterns.md`
+- `selector-resilience.md`
+- `timing-debugging.md`
+- `test-levels-framework.md`
+- `test-priorities-matrix.md`
+- `api-testing-patterns.md`
+- `error-handling.md`
 
 ---
 
 ## Test Execution Evidence
 
-### Initial Test Run (RED Phase Verification)
-
-**Command:** `{test_command_all}`
-
-**Results:**
-
-```
-{paste_test_run_output_showing_all_tests_failing}
-```
-
-**Summary:**
-
-- Total tests: {total_test_count}
-- Passing: 0 (expected)
-- Failing: {total_test_count} (expected)
-- Status: ✅ RED phase verified
-
-**Expected Failure Messages:**
-{list_expected_failure_messages_for_each_test}
+RED-phase output is not available because the story is already implemented. Current runs should be green. See the story record for historical commands.
 
 ---
 
 ## Notes
 
-{Any additional notes, context, or special considerations for this story}
-
-- {Note 1}
-- {Note 2}
-- {Note 3}
+- Project context requires manual test coverage from `TEST_PLAN.md` even for API-only changes.
+- The existing audit integration test exceeds the 300-line guideline; consider splitting if further scenarios are added.
+- Cross-checked current Playwright, Cypress, Pact, and GitHub Actions documentation for tooling alignment. citeturn0search1turn0search2turn0search3turn1search0
 
 ---
 
-## Contact
-
-**Questions or Issues?**
-
-- Ask in team standup
-- Tag @{tea_agent_username} in Slack/Discord
-- Refer to `./bmm/docs/tea-README.md` for workflow documentation
-- Consult `./bmm/testarch/knowledge` for testing best practices
-
----
-
-**Generated by BMad TEA Agent** - {date}
+**Generated by BMad TEA Agent** - 2026-02-10
