@@ -37,9 +37,10 @@ so that tenancy enforcement and business denials are observable from day one.
 
 ### Project Structure Notes
 
-- Observability: `apps/api/src/observability/`
-- Logging middleware: `apps/api/src/middleware/` or `apps/api/src/observability/logger.ts`
-- Tests: `tests/integration/`
+- Correlation hooks: `apps/api/src/observability/correlation.ts`
+- Outcome logging helpers: `apps/api/src/logging/`
+- Core app wiring: `apps/api/src/main.ts`
+- Tests: `tests/integration/` and `tests/tenant-isolation/`
 
 ### References
 
@@ -49,7 +50,7 @@ so that tenancy enforcement and business denials are observable from day one.
 
 ### Technical Requirements (Latest Versions)
 
-- Node.js 20+ required by Fastify v5; ensure logger and middleware are compatible. citeturn0search1turn1search0
+- Node.js 20+ required by Fastify v5; ensure logger and middleware are compatible.
 
 ## Dev Agent Record
 
@@ -70,14 +71,15 @@ N/A
 
 ### Completion Notes List
 
-- Added correlation_id injection for JSON responses and error handler.
-- Updated correlation telemetry test to use correlation middleware.
-- Added structured refusal/error telemetry logging fields.
-- Verified telemetry schema tests for refusal/error logging.
-- Tests run: `docker compose -f infra/docker/docker-compose.yml run --rm --build api-test pnpm test:db`.
+- Added correlation_id injection, not-found handler, and structured refusal/error outcome logging.
+- Added telemetry assertions for refusal vs error outcomes.
+- Tests: `docker compose -f infra/docker/docker-compose.yml run --rm api-test pnpm test:db`.
 
 ### File List
 
+- `apps/api/src/logging/outcome.ts`
+- `apps/api/src/main.ts`
+- `tests/tenant-isolation/host-based-tenant-refusal.ts`
 - `_bmad-output/implementation-artifacts/1-3-correlation-ids-refusal-error-metrics-split.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
 - `_bmad-output/atdd-checklist-1-3-correlation-ids-refusal-error-metrics-split.md`

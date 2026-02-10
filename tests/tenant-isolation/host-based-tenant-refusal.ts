@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import knex, { type Knex } from "knex";
 import config from "../../apps/api/db/knexfile";
 import { APP_KEY } from "../../apps/api/src/config/app";
+import { logOutcome } from "../../apps/api/src/logging/outcome";
 import { tenantContextHook } from "../../apps/api/src/tenancy/hook";
 import { closeDb } from "../../apps/api/src/db/client";
 import { refusalReasons } from "../../apps/api/src/tenancy/refusal";
@@ -23,9 +24,11 @@ type ReplyCapture = FastifyReply & {
 };
 
 type LogEntry = {
-  level: "warn" | "info";
+  level: "warn" | "info" | "error";
   msg?: string;
   reason?: string;
+  outcome?: string;
+  error_code?: string;
   tenant_id?: string;
   correlation_id?: string;
 };
@@ -34,6 +37,7 @@ type LogCapture = {
   entries: LogEntry[];
   warn: (payload: Record<string, unknown>, msg?: string) => void;
   info: (payload: Record<string, unknown>, msg?: string) => void;
+  error: (payload: Record<string, unknown>, msg?: string) => void;
 };
 
 type RequestCapture = FastifyRequest & {
@@ -72,6 +76,8 @@ function createLogger(): LogCapture {
         level: "warn",
         msg: msg ?? (payload.msg as string | undefined),
         reason: payload.reason as string | undefined,
+        outcome: payload.outcome as string | undefined,
+        error_code: payload.error_code as string | undefined,
         tenant_id: payload.tenant_id as string | undefined,
         correlation_id: payload.correlation_id as string | undefined,
       });
@@ -81,6 +87,19 @@ function createLogger(): LogCapture {
         level: "info",
         msg: msg ?? (payload.msg as string | undefined),
         reason: payload.reason as string | undefined,
+        outcome: payload.outcome as string | undefined,
+        error_code: payload.error_code as string | undefined,
+        tenant_id: payload.tenant_id as string | undefined,
+        correlation_id: payload.correlation_id as string | undefined,
+      });
+    },
+    error(payload: Record<string, unknown>, msg?: string) {
+      entries.push({
+        level: "error",
+        msg: msg ?? (payload.msg as string | undefined),
+        reason: payload.reason as string | undefined,
+        outcome: payload.outcome as string | undefined,
+        error_code: payload.error_code as string | undefined,
         tenant_id: payload.tenant_id as string | undefined,
         correlation_id: payload.correlation_id as string | undefined,
       });
@@ -351,6 +370,49 @@ async function run() {
     assert.equal(
       (refusalReasons as Record<string, string>).notAMember,
       "NOT_A_MEMBER",
+    );
+
+    // Story 1.3: structured outcome logging for refusal vs error.
+    const refusalLogger = createLogger();
+    const refusalRequest = createRequest({
+      host: "unknown.voucher.shyft.org",
+      db,
+      log: refusalLogger,
+    });
+    const refusalReply = createReply();
+    await tenantContextHook(refusalRequest, refusalReply);
+    logOutcome(refusalRequest, refusalReply, refusalReply.body);
+
+    assert.ok(
+      refusalLogger.entries.some(
+        (entry) =>
+          entry.outcome === "refusal" &&
+          entry.reason === REFUSAL_REASONS.tenantNotFound &&
+          entry.correlation_id === refusalRequest.id,
+      ),
+    );
+
+    const errorLogger = createLogger();
+    const errorRequest = createRequest({
+      host: "unknown.voucher.shyft.org",
+      db,
+      log: errorLogger,
+    });
+    const errorReply = createReply();
+    errorReply.code(401);
+    logOutcome(errorRequest, errorReply, {
+      success: false,
+      error: { code: "UNAUTHORIZED", message: "Invalid token" },
+      correlation_id: errorRequest.id,
+    });
+
+    assert.ok(
+      errorLogger.entries.some(
+        (entry) =>
+          entry.outcome === "error" &&
+          entry.error_code === "UNAUTHORIZED" &&
+          entry.correlation_id === errorRequest.id,
+      ),
     );
   } finally {
     await cleanup();
