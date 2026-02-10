@@ -95,11 +95,10 @@ export function registerAdminRoutes(app: FastifyInstance) {
           },
           required: ["tenant_id", "host"],
         },
-        // Response schema validation is disabled while using pre-serialized JSON responses.
-        // response: {
-        //   200: successSchema(tenantSchema),
-        //   ...adminErrorResponses,
-        // },
+        response: {
+          200: successSchema(tenantSchema),
+          ...adminErrorResponses,
+        },
       },
     },
     async (request, reply) => {
