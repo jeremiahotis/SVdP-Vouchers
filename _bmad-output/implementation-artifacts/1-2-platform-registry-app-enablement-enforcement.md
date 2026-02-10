@@ -13,7 +13,7 @@ so that disabled tenants cannot access VoucherShyft and enablement is auditable.
 ## Acceptance Criteria
 
 1. **Given** `platform.tenants` and `platform.tenant_apps`,
-   **When** app enablement is evaluated on every request,
+   **When** app enablement is evaluated on every tenant-scoped request (all routes except `/admin` and `/health`),
    **Then** disabled tenants return HTTP 200 refusal `{ success:false, reason:"TENANT_NOT_FOUND" }` and internal logs record `APP_DISABLED`.
 2. **And** platform admin endpoints for tenant/app provisioning require 401/403 on access denial (not refusals).
 3. **And** OpenAPI includes admin routes and is generated from the same Fastify route schemas used for validation.
