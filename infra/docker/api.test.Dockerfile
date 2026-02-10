@@ -16,4 +16,6 @@ COPY tests tests
 COPY docs/RELEASE_GATES.md docs/RELEASE_GATES.md
 COPY .github/workflows .github/workflows
 
+RUN pnpm -C packages/contracts build
+
 CMD ["pnpm", "test:tenant"]
