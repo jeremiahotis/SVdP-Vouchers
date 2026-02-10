@@ -37,6 +37,7 @@
 - [DB Migrations README](../db/migrations/README.md) - Migration runner notes
  - [Cutover Runbook](./CUTOVER.md) - Hard cutover + 30-day read-only window
  - [Tenancy & Access Model](./TENANCY_AND_ACCESS.md) - Host/JWT tenancy, roles, refusals
+ - [Git Story/Epic Policy](./GIT_STORY_EPIC_POLICY.md) - Branching, commit, PR, and merge rules
 
 ## Getting Started
 

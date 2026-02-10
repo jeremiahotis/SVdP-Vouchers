@@ -29,6 +29,7 @@
 - Recent commits use concise, imperative subjects (e.g., “Update voucher-request.js”).
 - When applicable, include a short scope or phase tag in the subject (e.g., “Phase 8-9”).
 - PRs should describe user-visible changes, list affected pages/shortcodes, and include screenshots for UI changes.
+- For story/epic branching, commit slicing, and merge policy, follow `docs/GIT_STORY_EPIC_POLICY.md`.
 
 ## Security & Configuration Notes
 - Public endpoints are intentional; preserve nonce usage and capability checks.
