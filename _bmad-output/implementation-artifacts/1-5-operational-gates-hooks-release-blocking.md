@@ -56,33 +56,37 @@ so that release readiness includes backup/restore and alert thresholds.
 
 GPT-5
 
-### Debug Log References
+### Implementation Plan
 
-- `docker compose -f infra/docker/docker-compose.yml run --rm --build api-test pnpm test:db`
+- Add operational gates documentation with backup/restore and alert thresholds.
+- Enforce release gates via `test:release-gates` wired into `test:db` and CI.
+- Add cutover runbook and parity checks references; re-enable corresponding tests.
+
+### Debug Log References
 - `pnpm test:release-gates`
+- `docker compose -f infra/docker/docker-compose.yml run --rm api-test pnpm test:db` (green)
 
 ### Completion Notes List
 
-- Tightened CI gate to require tracked, non-empty `docs/RELEASE_GATES.md`.
-- Moved release-gate checks to `tests/integration/operational-gates.ts` and wired into `pnpm test:db`.
-- Clarified IO wait alert measurement in `docs/RELEASE_GATES.md`.
-- Updated ATDD checklist to reference `tests/integration/operational-gates.ts` and `pnpm test:release-gates`.
-- Updated tenant isolation test harness to parse JSON-string refusals.
+- Added release gates documentation covering backups, restore drills, alert thresholds, and cutover readiness references.
+- Enforced off-droplet backup wording in release gates docs and tests.
+- Wired release-gates test into `pnpm test:db` and CI compose workflow (`api-test`) plus CI presence check for `docs/RELEASE_GATES.md`.
+- Added correlation_id presence assertions for refusal tests.
 - Updated api-test Dockerfile to include `docs/RELEASE_GATES.md` and `.github/workflows` for integration checks.
-- Updated compose workflow to run `api-test` service for `pnpm test:db`.
-- Tests: `pnpm test:release-gates` (pass); `docker compose -f infra/docker/docker-compose.yml run --rm --build api-test pnpm test:db` (pass).
+- Full compose regression suite green.
 
 ### File List
 
-- `.github/workflows/compose-tests.yml`
-- `_bmad-output/atdd-checklist-1-5-operational-gates-hooks-release-blocking.md`
+- `_bmad-output/implementation-artifacts/1-5-operational-gates-hooks-release-blocking.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `_bmad-output/atdd-checklist-1-5.md`
+- `_bmad-output/atdd-checklist-1-5-operational-gates-hooks-release-blocking.md`
+- `.github/workflows/compose-tests.yml`
 - `docs/RELEASE_GATES.md`
-- `infra/docker/api.test.Dockerfile`
-- `package.json`
 - `tests/integration/operational-gates.ts`
 - `tests/tenant-isolation/host-based-tenant-refusal.ts`
-- `_bmad-output/implementation-artifacts/1-5-operational-gates-hooks-release-blocking.md`
+- `package.json`
+- `infra/docker/api.test.Dockerfile`
 
 ### Change Log
 
@@ -90,3 +94,4 @@ GPT-5
 - 2026-02-07: Tightened CI release-gate check, moved operational gate checks into integration tests, and clarified IO wait definition.
 - 2026-02-07: Fixed tenant isolation test harness and updated api-test Dockerfile for release-gate checks.
 - 2026-02-07: Updated compose workflow to use api-test for database test runs.
+- 2026-02-10: Enforced off-droplet backup wording, fixed compose CI service name, and added correlation_id assertions.
