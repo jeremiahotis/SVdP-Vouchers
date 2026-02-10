@@ -50,6 +50,32 @@ assert.ok(paths.includes("/admin/tenants"));
 assert.ok(paths.includes("/admin/tenants/{tenant_id}"));
 assert.ok(paths.includes("/admin/tenant-apps"));
 
+type OpenApiOperation = {
+  responses?: Record<string, unknown>;
+};
+
+function assertAdminResponses(operation: OpenApiOperation | undefined) {
+  assert.ok(operation);
+  assert.ok(operation?.responses?.["200"]);
+  assert.ok(operation?.responses?.["401"]);
+  assert.ok(operation?.responses?.["403"]);
+}
+
+const tenantsPath = (spec.paths?.["/admin/tenants"] ?? {}) as Record<string, OpenApiOperation>;
+const tenantByIdPath = (spec.paths?.["/admin/tenants/{tenant_id}"] ?? {}) as Record<
+  string,
+  OpenApiOperation
+>;
+const tenantAppsPath = (spec.paths?.["/admin/tenant-apps"] ?? {}) as Record<
+  string,
+  OpenApiOperation
+>;
+
+assertAdminResponses(tenantsPath.get);
+assertAdminResponses(tenantsPath.post);
+assertAdminResponses(tenantByIdPath.patch);
+assertAdminResponses(tenantAppsPath.post);
+
 async function run() {
   const generatedAdminSpec = await loadGeneratedAdminSpec();
   assert.deepStrictEqual(spec, generatedAdminSpec);

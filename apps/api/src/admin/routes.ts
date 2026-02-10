@@ -69,7 +69,8 @@ export function registerAdminRoutes(app: FastifyInstance) {
         return;
       }
 
-      const rows = await getDb()("platform.tenants")
+      const db = request.db ?? getDb();
+      const rows = await db("platform.tenants")
         .select("tenant_id", "host", "tenant_slug", "status")
         .orderBy("host", "asc");
 
@@ -107,7 +108,6 @@ export function registerAdminRoutes(app: FastifyInstance) {
       }
 
       const db = request.db ?? getDb();
-
       const body = request.body as {
         tenant_id: string;
         host: string;
@@ -164,6 +164,7 @@ export function registerAdminRoutes(app: FastifyInstance) {
         return;
       }
 
+      const db = request.db ?? getDb();
       const params = request.params as { tenant_id: string };
       const body = request.body as {
         host?: string | null;
@@ -171,7 +172,6 @@ export function registerAdminRoutes(app: FastifyInstance) {
         status?: string | null;
       };
 
-      const db = request.db ?? getDb();
       const [row] = await db("platform.tenants")
         .where({ tenant_id: params.tenant_id })
         .update({
@@ -222,13 +222,13 @@ export function registerAdminRoutes(app: FastifyInstance) {
         return;
       }
 
+      const db = request.db ?? getDb();
       const body = request.body as {
         tenant_id: string;
         app_key: string;
         enabled: boolean;
       };
 
-      const db = request.db ?? getDb();
       const [row] = await db("platform.tenant_apps")
         .insert({
           tenant_id: body.tenant_id,

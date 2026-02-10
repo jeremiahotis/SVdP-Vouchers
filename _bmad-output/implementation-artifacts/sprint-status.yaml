@@ -43,7 +43,7 @@ development_status:
   epic-1: in-progress
   1-0-initialize-vouchershyft-monorepo-scaffold: done
   1-1-host-based-tenant-resolution-refusal-reasons: done
-  1-2-platform-registry-app-enablement-enforcement: review
+  1-2-platform-registry-app-enablement-enforcement: done
   1-3-correlation-ids-refusal-error-metrics-split: review
   1-4-minimal-audit-write-path-append-only: done
   1-5-operational-gates-hooks-release-blocking: done
