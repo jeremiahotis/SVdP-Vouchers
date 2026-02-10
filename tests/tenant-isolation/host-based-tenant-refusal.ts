@@ -56,11 +56,19 @@ function createReply(): ReplyCapture {
       return this;
     },
     header(name: string, value: string) {
-      this.headers = this.headers ?? {};
-      this.headers[name.toLowerCase()] = value;
+      this.headers![name.toLowerCase()] = value;
       return this;
     },
     send(payload: unknown) {
+      const contentType = this.headers?.["content-type"] ?? "";
+      if (typeof payload === "string" && contentType.includes("application/json")) {
+        try {
+          this.body = JSON.parse(payload) as unknown;
+          return this;
+        } catch {
+          // Fall through to raw payload when JSON parsing fails.
+        }
+      }
       this.body = payload;
       return this;
     },
@@ -200,6 +208,14 @@ async function run() {
 
     assert.equal(unknownReply.statusCode, 200);
     assert.equal(disabledReply.statusCode, 200);
+    assert.ok(
+      (unknownReply.body as { correlation_id?: string })?.correlation_id,
+      "Expected correlation_id on unknown host refusal",
+    );
+    assert.ok(
+      (disabledReply.body as { correlation_id?: string })?.correlation_id,
+      "Expected correlation_id on disabled-app refusal",
+    );
     assert.deepStrictEqual(normalizeRefusal(unknownReply.body), normalizeRefusal(disabledReply.body));
     assert.ok(
       disabledLogger.entries.some(
