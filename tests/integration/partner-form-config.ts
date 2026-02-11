@@ -8,6 +8,7 @@ import { PARTNER_TOKEN_HEADER, hashPartnerToken } from "../../apps/api/src/auth/
 import { APP_KEY } from "../../apps/api/src/config/app";
 import { closeDb } from "../../apps/api/src/db/client";
 import { dbErrorHook, dbRequestHook, dbResponseHook } from "../../apps/api/src/db/hooks";
+import { registerCorrelation } from "../../apps/api/src/observability/correlation";
 import {
   getActivePartnerTokenForAdmin,
   getPartnerFormConfigByToken,
@@ -36,6 +37,7 @@ async function seedTenant(db: Knex, tenantId: string, host: string) {
 
 function buildPartnerApp() {
   const app = Fastify({ logger: false });
+  registerCorrelation(app);
   app.addHook("onRequest", dbRequestHook);
   app.addHook("onRequest", authHook);
   app.addHook("onRequest", tenantContextHook);
@@ -47,6 +49,7 @@ function buildPartnerApp() {
 
 function buildStoreAdminApp(params: { actorId: string; tenantId: string }) {
   const app = Fastify({ logger: false });
+  registerCorrelation(app);
   app.addHook("onRequest", dbRequestHook);
   app.addHook("onRequest", (request, _reply, done) => {
     request.authContext = {
