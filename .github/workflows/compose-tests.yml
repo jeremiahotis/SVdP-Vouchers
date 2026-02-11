@@ -54,4 +54,4 @@ jobs:
         run: |
           chmod +x infra/scripts/compose.sh
           echo "Running pnpm ${{ matrix.script }}"
-          time timeout 30m infra/scripts/compose.sh run --rm --no-build api-test pnpm ${{ matrix.script }}
+          time timeout 30m infra/scripts/compose.sh run --rm api-test pnpm ${{ matrix.script }}
