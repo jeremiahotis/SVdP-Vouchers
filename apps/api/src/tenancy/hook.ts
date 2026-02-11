@@ -19,8 +19,16 @@ function isPartnerLookupRequest(request: FastifyRequest) {
   return request.method === "GET" && getRequestPath(request) === "/v1/vouchers/lookup";
 }
 
+function isPartnerFormConfigRequest(request: FastifyRequest) {
+  return request.method === "GET" && getRequestPath(request) === "/v1/partner/form-config";
+}
+
 function isPartnerAllowedRequest(request: FastifyRequest) {
-  return isPartnerIssuanceRequest(request) || isPartnerLookupRequest(request);
+  return (
+    isPartnerIssuanceRequest(request) ||
+    isPartnerLookupRequest(request) ||
+    isPartnerFormConfigRequest(request)
+  );
 }
 
 function getLookupVoucherId(request: FastifyRequest): string | null {
@@ -116,9 +124,33 @@ export async function tenantContextHook(
     return;
   }
 
-  const queryTenantId = (request.query as { tenant_id?: string } | undefined)?.tenant_id;
-  const bodyTenantId = (request.body as { tenant_id?: string } | undefined)?.tenant_id;
-  if (queryTenantId || bodyTenantId) {
+  const query = request.query as
+    | {
+      tenant_id?: string;
+      tenantId?: string;
+      partner_agency_id?: string;
+      partnerAgencyId?: string;
+    }
+    | undefined;
+  const body = request.body as
+    | {
+      tenant_id?: string;
+      tenantId?: string;
+      partner_agency_id?: string;
+      partnerAgencyId?: string;
+    }
+    | undefined;
+  const hasContextOverride = Boolean(
+    query?.tenant_id ||
+      query?.tenantId ||
+      query?.partner_agency_id ||
+      query?.partnerAgencyId ||
+      body?.tenant_id ||
+      body?.tenantId ||
+      body?.partner_agency_id ||
+      body?.partnerAgencyId,
+  );
+  if (hasContextOverride) {
     await writeAuditEvent({
       tenantId,
       actorId,

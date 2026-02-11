@@ -14,6 +14,7 @@ export const refusalReasons = {
   tenantNotFound: REFUSAL_REASONS.tenantNotFound,
   tenantContextMismatch: REFUSAL_REASONS.tenantContextMismatch,
   notAMember: REFUSAL_REASONS.notAMember,
+  notAuthorizedForAction: REFUSAL_REASONS.notAuthorizedForAction,
   partnerTokenInvalid: REFUSAL_REASONS.partnerTokenInvalid,
   partnerTokenScope: REFUSAL_REASONS.partnerTokenScope,
 } as const;

@@ -63,10 +63,11 @@ development_status:
   3-3-redemption-status-surface-cashier-view: backlog
   epic-3-retrospective: optional
 
-  epic-4: backlog
+  epic-4: in-progress
   4-1-store-configuration-catalog-rules-text-hours: backlog
   4-2-staff-management-cashier-accounts: backlog
   4-3-read-only-auditor-access: backlog
+  4-4-partner-form-customization: review
   epic-4-retrospective: optional
 
   epic-5: backlog
