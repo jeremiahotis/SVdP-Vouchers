@@ -1,6 +1,6 @@
 # Story 4.4: Partner Form Customization
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

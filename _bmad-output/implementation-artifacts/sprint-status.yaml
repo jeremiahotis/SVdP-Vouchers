@@ -50,7 +50,7 @@ development_status:
   1-6-partner-token-access-embedded-issuance-lookup: done
   epic-1-retrospective: optional
 
-  ci-compose-suite-optimizations: in-progress
+  ci-compose-suite-optimizations: done
 
   epic-2: backlog
   2-1-issue-voucher-allowed-types-identity-minimums: backlog
@@ -69,7 +69,7 @@ development_status:
   4-1-store-configuration-catalog-rules-text-hours: backlog
   4-2-staff-management-cashier-accounts: backlog
   4-3-read-only-auditor-access: backlog
-  4-4-partner-form-customization: review
+  4-4-partner-form-customization: done
   epic-4-retrospective: optional
 
   epic-5: backlog

@@ -1,6 +1,6 @@
 # Story: CI Compose Suite Optimizations
 
-Status: in-progress
+Status: done
 
 ## Story
 
@@ -17,22 +17,22 @@ so that PR checks finish quickly without reducing coverage.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Add CI caching for Compose Test Suite
-  - [ ] Update `.github/workflows/compose-tests.yml` to use `docker/setup-buildx-action` and `docker/build-push-action` cache-from/cache-to.
-  - [ ] Add `actions/cache` for pnpm store (or mount in Docker build step as appropriate).
-  - [ ] Ensure cache keys use `pnpm-lock.yaml` hash.
-  - [ ] Verify workflow still uses compose to run tests; no test commands change.
-- [ ] Task 2: Use BuildKit cache mount in `api.test.Dockerfile`
-  - [ ] Add BuildKit syntax line.
-  - [ ] Add cache mount for pnpm store in `pnpm install` layer.
-  - [ ] Keep Dockerfile behavior identical apart from caching.
-- [ ] Task 3: Parallelize test jobs
-  - [ ] Split Compose Test Suite into a matrix with jobs: `test:admin`, `test:tenant`, `test:idempotency`, `test:release-gates`.
-  - [ ] Each job runs `infra/scripts/compose.sh run --rm api-test pnpm <task>` with same env prep.
-  - [ ] Ensure job names are clear for PR status checks.
-- [ ] Task 4: Add timing + timeout guard
-  - [ ] Add `time` output around test command in workflow.
-  - [ ] Add job-level timeout (`timeout-minutes`) and/or command-level timeout to fail hung jobs.
+- [x] Task 1: Add CI caching for Compose Test Suite
+  - [x] Update `.github/workflows/compose-tests.yml` to use `docker/setup-buildx-action` and `docker/build-push-action` cache-from/cache-to.
+  - [x] Add `actions/cache` for pnpm store (or mount in Docker build step as appropriate).
+  - [x] Ensure cache keys use `pnpm-lock.yaml` hash.
+  - [x] Verify workflow still uses compose to run tests; no test commands change.
+- [x] Task 2: Use BuildKit cache mount in `api.test.Dockerfile`
+  - [x] Add BuildKit syntax line.
+  - [x] Add cache mount for pnpm store in `pnpm install` layer.
+  - [x] Keep Dockerfile behavior identical apart from caching.
+- [x] Task 3: Parallelize test jobs
+  - [x] Split Compose Test Suite into a matrix with jobs: `test:admin`, `test:tenant`, `test:idempotency`, `test:release-gates`.
+  - [x] Each job runs `infra/scripts/compose.sh run --rm api-test pnpm <task>` with same env prep.
+  - [x] Ensure job names are clear for PR status checks.
+- [x] Task 4: Add timing + timeout guard
+  - [x] Add `time` output around test command in workflow.
+  - [x] Add job-level timeout (`timeout-minutes`) and/or command-level timeout to fail hung jobs.
 
 ## Dev Notes
 
@@ -72,7 +72,8 @@ GPT-5
 - Added Buildx caching and matrix test jobs in Compose Test Suite workflow.
 - Added BuildKit cache mount for pnpm store in api-test Dockerfile.
 - Added per-job timing + timeout guard in CI.
-- Tests not fully completed: `partner-form-config` hang in compose; full `test:db` run incomplete.
+- Fixed matrix regressions by removing unsupported compose flag and making tenant/idempotency tests self-seed migrations.
+- Verified full compose test suite passes in CI on PR (`Compose Test Suite` + `OpenAPI Check` green).
 
 ### File List
 
@@ -84,3 +85,4 @@ GPT-5
 ### Change Log
 
 - 2026-02-11: Added cached Buildx build, parallel Compose test jobs, and per-job timing/timeout guard; added BuildKit cache mount for pnpm store.
+- 2026-02-11: Fixed matrix execution regressions and verified all required checks green.
