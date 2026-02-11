@@ -4,11 +4,25 @@ on:
   push:
     branches: [ main, feature/* ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, feature/* ]
 
 jobs:
   compose-tests:
+    name: Compose Test Suite (${{ matrix.label }})
     runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: admin
+            script: test:admin
+          - label: tenant
+            script: test:tenant
+          - label: idempotency
+            script: test:idempotency
+          - label: release-gates
+            script: test:release-gates
     steps:
       - uses: actions/checkout@v4
 
@@ -17,7 +31,21 @@ jobs:
           cp .env.example .env
           echo "GIT_SHA=${GITHUB_SHA}" >> .env
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build api-test image (cached)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: infra/docker/api.test.Dockerfile
+          tags: docker-api-test
+          load: true
+          cache-from: type=gha,scope=api-test
+          cache-to: type=gha,mode=max,scope=api-test
+
       - name: Verify release gates doc
+        if: ${{ matrix.script == 'test:release-gates' }}
         run: |
           git ls-files --error-unmatch docs/RELEASE_GATES.md
           test -s docs/RELEASE_GATES.md
@@ -25,4 +53,5 @@ jobs:
       - name: Run compose tests
         run: |
           chmod +x infra/scripts/compose.sh
-          infra/scripts/compose.sh run --rm api-test pnpm test:db
+          echo "Running pnpm ${{ matrix.script }}"
+          time timeout 30m infra/scripts/compose.sh run --rm api-test pnpm ${{ matrix.script }}

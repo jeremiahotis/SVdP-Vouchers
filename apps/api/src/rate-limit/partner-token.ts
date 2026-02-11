@@ -1,4 +1,4 @@
-import { PARTNER_TOKEN_RATE_LIMIT } from "./limits";
+import { PARTNER_TOKEN_RATE_LIMIT } from "./limits.js";
 
 type RateLimitBucket = {
   windowStart: number;

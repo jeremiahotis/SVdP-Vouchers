@@ -7,7 +7,7 @@
     "dev": "tsx src/main.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/src/main.js",
-    "openapi:generate": "tsx src/scripts/generate-openapi.ts",
+    "openapi:generate": "pnpm -C ../../packages/contracts build && tsx src/scripts/generate-openapi.ts",
     "migrate": "tsx src/migrate.ts"
   },
   "dependencies": {

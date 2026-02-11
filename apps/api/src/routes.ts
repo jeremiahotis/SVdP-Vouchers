@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { errorSchema, successOrRefusalSchema, successSchema } from "./schemas/response.js";
 import { registerAdminRoutes } from "./admin/routes.js";
 import { writeAuditEvent } from "./audit/write.js";
+import { registerPartnerRoutes } from "./partner/routes.js";
 
 const healthDataSchema = {
   type: "object",
@@ -72,4 +73,5 @@ export function registerRoutes(app: FastifyInstance) {
   );
 
   registerAdminRoutes(app);
+  registerPartnerRoutes(app);
 }
