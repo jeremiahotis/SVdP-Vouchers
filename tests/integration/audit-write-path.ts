@@ -285,6 +285,7 @@ async function run() {
   const db = getDb();
 
   try {
+    await db.migrate.latest({ directory: "apps/api/db/migrations", loadExtensions: [".ts"] });
     await seedBase(db);
     await testAdminActionAuditEvent(db);
     await seedBase(db);
