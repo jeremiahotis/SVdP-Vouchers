@@ -140,11 +140,15 @@ export function registerPartnerRoutes(app: FastifyInstance) {
         return refusalReply(reply, refusalReasons.partnerTokenInvalid, request.id);
       }
 
-      return {
-        success: true,
-        data: config,
-        correlation_id: request.id,
-      };
+      return reply
+        .header("content-type", "application/json")
+        .send(
+          JSON.stringify({
+            success: true,
+            data: config,
+            correlation_id: request.id,
+          }),
+        );
     },
   );
 
@@ -194,11 +198,15 @@ export function registerPartnerRoutes(app: FastifyInstance) {
         return refusalReply(reply, refusalReasons.notAuthorizedForAction, request.id);
       }
 
-      return {
-        success: true,
-        data: tokenRecord.config,
-        correlation_id: request.id,
-      };
+      return reply
+        .header("content-type", "application/json")
+        .send(
+          JSON.stringify({
+            success: true,
+            data: tokenRecord.config,
+            correlation_id: request.id,
+          }),
+        );
     },
   );
 
@@ -270,11 +278,15 @@ export function registerPartnerRoutes(app: FastifyInstance) {
         dbOverride: request.db,
       });
 
-      return {
-        success: true,
-        data: updated.config,
-        correlation_id: request.id,
-      };
+      return reply
+        .header("content-type", "application/json")
+        .send(
+          JSON.stringify({
+            success: true,
+            data: updated.config,
+            correlation_id: request.id,
+          }),
+        );
     },
   );
 
@@ -324,15 +336,19 @@ export function registerPartnerRoutes(app: FastifyInstance) {
         return refusalReply(reply, issuance.reason, request.id);
       }
 
-      return {
-        success: true,
-        data: {
-          voucher_id: issuance.voucherId,
-          status: "active",
-          voucher_type: issuance.voucherType,
-        },
-        correlation_id: request.id,
-      };
+      return reply
+        .header("content-type", "application/json")
+        .send(
+          JSON.stringify({
+            success: true,
+            data: {
+              voucher_id: issuance.voucherId,
+              status: "active",
+              voucher_type: issuance.voucherType,
+            },
+            correlation_id: request.id,
+          }),
+        );
     },
   );
 
@@ -375,11 +391,15 @@ export function registerPartnerRoutes(app: FastifyInstance) {
         return refusalReply(reply, refusalReasons.partnerTokenScope, request.id);
       }
 
-      return {
-        success: true,
-        data: { voucher_id: voucher.id as string, status: voucher.status as string },
-        correlation_id: request.id,
-      };
+      return reply
+        .header("content-type", "application/json")
+        .send(
+          JSON.stringify({
+            success: true,
+            data: { voucher_id: voucher.id as string, status: voucher.status as string },
+            correlation_id: request.id,
+          }),
+        );
     },
   );
 }

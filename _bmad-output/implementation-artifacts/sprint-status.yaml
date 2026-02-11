@@ -50,6 +50,8 @@ development_status:
   1-6-partner-token-access-embedded-issuance-lookup: done
   epic-1-retrospective: optional
 
+  ci-compose-suite-optimizations: in-progress
+
   epic-2: backlog
   2-1-issue-voucher-allowed-types-identity-minimums: backlog
   2-2-duplicate-detection-policy-window: backlog

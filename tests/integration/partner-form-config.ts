@@ -344,9 +344,33 @@ async function run() {
     const partnerRefusalBody = parseJson(partnerRefusalResponse.body) as {
       success: boolean;
       reason?: string;
+      correlation_id?: string;
     };
     assert.equal(partnerRefusalBody.success, false);
     assert.equal(partnerRefusalBody.reason, refusalReasons.notAuthorizedForAction);
+    assert.equal(typeof partnerRefusalBody.correlation_id, "string");
+    assert.equal(
+      partnerRefusalResponse.headers["x-correlation-id"],
+      partnerRefusalBody.correlation_id,
+    );
+
+    const tenantMismatchResponse = await partnerApp.inject({
+      method: "GET",
+      url: "/v1/partner/form-config",
+      headers: {
+        host: hostB,
+        [PARTNER_TOKEN_HEADER]: partnerTokenA,
+      },
+    });
+    assert.equal(tenantMismatchResponse.statusCode, 200);
+    const tenantMismatchBody = parseJson(tenantMismatchResponse.body) as {
+      success: boolean;
+      reason?: string;
+      correlation_id?: string;
+    };
+    assert.equal(tenantMismatchBody.success, false);
+    assert.equal(tenantMismatchBody.reason, refusalReasons.tenantContextMismatch);
+    assert.equal(typeof tenantMismatchBody.correlation_id, "string");
 
     const storeAdminApp = buildStoreAdminApp({
       actorId: storeAdminActorId,
@@ -367,6 +391,21 @@ async function run() {
     assert.equal(adminGetBody.success, true);
     assert.deepStrictEqual(adminGetBody.data?.allowed_voucher_types, ["furniture", "clothing"]);
 
+    const adminTenantMismatchResponse = await storeAdminApp.inject({
+      method: "GET",
+      url: `/v1/store-admin/partners/${partnerAgencyA}/form-config`,
+      headers: { host: hostB },
+    });
+    assert.equal(adminTenantMismatchResponse.statusCode, 200);
+    const adminTenantMismatchBody = parseJson(adminTenantMismatchResponse.body) as {
+      success: boolean;
+      reason?: string;
+      correlation_id?: string;
+    };
+    assert.equal(adminTenantMismatchBody.success, false);
+    assert.equal(adminTenantMismatchBody.reason, refusalReasons.tenantContextMismatch);
+    assert.equal(typeof adminTenantMismatchBody.correlation_id, "string");
+
     const invalidAdminResponse = await storeAdminApp.inject({
       method: "PUT",
       url: `/v1/store-admin/partners/${partnerAgencyA}/form-config`,
@@ -381,9 +420,11 @@ async function run() {
     const invalidAdminBody = parseJson(invalidAdminResponse.body) as {
       success: boolean;
       error?: { code?: string };
+      correlation_id?: string;
     };
     assert.equal(invalidAdminBody.success, false);
-    assert.equal(invalidAdminBody.error?.code, "BAD_REQUEST");
+    assert.equal(invalidAdminBody.error?.code, "FST_ERR_VALIDATION");
+    assert.equal(typeof invalidAdminBody.correlation_id, "string");
 
     const updatedPayload = {
       allowed_voucher_types: ["clothing"],
@@ -423,6 +464,52 @@ async function run() {
     assert.deepStrictEqual(partnerConfigUpdatedBody.data?.allowed_voucher_types, ["clothing"]);
     assert.equal(partnerConfigUpdatedBody.data?.intro_text, "Updated intro");
     assert.deepStrictEqual(partnerConfigUpdatedBody.data?.rules_list, ["Bring ID"]);
+
+    const partnerIssueSuccessResponse = await partnerApp.inject({
+      method: "POST",
+      url: "/v1/vouchers",
+      headers: {
+        host: hostA,
+        "content-type": "application/json",
+        [PARTNER_TOKEN_HEADER]: partnerTokenASecondary,
+      },
+      payload: { voucher_type: "clothing" },
+    });
+    assert.equal(partnerIssueSuccessResponse.statusCode, 200);
+    const partnerIssueSuccessBody = parseJson(partnerIssueSuccessResponse.body) as {
+      success: boolean;
+      data?: {
+        voucher_id?: string;
+        status?: string;
+        voucher_type?: string;
+      };
+      correlation_id?: string;
+    };
+    assert.equal(partnerIssueSuccessBody.success, true);
+    assert.equal(partnerIssueSuccessBody.data?.status, "active");
+    assert.equal(partnerIssueSuccessBody.data?.voucher_type, "clothing");
+    assert.equal(typeof partnerIssueSuccessBody.data?.voucher_id, "string");
+    assert.equal(typeof partnerIssueSuccessBody.correlation_id, "string");
+
+    const partnerLookupResponse = await partnerApp.inject({
+      method: "GET",
+      url: `/v1/vouchers/lookup?voucher_id=${partnerIssueSuccessBody.data?.voucher_id ?? ""}`,
+      headers: {
+        host: hostA,
+        [PARTNER_TOKEN_HEADER]: partnerTokenASecondary,
+      },
+    });
+    assert.equal(partnerLookupResponse.statusCode, 200);
+    const partnerLookupBody = parseJson(partnerLookupResponse.body) as {
+      success: boolean;
+      data?: {
+        voucher_id?: string;
+        status?: string;
+      };
+    };
+    assert.equal(partnerLookupBody.success, true);
+    assert.equal(partnerLookupBody.data?.voucher_id, partnerIssueSuccessBody.data?.voucher_id);
+    assert.equal(partnerLookupBody.data?.status, "active");
 
     await storeAdminApp.close();
     await partnerApp.close();
