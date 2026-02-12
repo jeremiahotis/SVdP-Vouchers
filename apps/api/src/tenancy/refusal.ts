@@ -17,4 +17,6 @@ export const refusalReasons = {
   notAuthorizedForAction: REFUSAL_REASONS.notAuthorizedForAction,
   partnerTokenInvalid: REFUSAL_REASONS.partnerTokenInvalid,
   partnerTokenScope: REFUSAL_REASONS.partnerTokenScope,
+  duplicateInPolicyWindow: REFUSAL_REASONS.duplicateInPolicyWindow,
+  duplicateWarningRequiresOverride: REFUSAL_REASONS.duplicateWarningRequiresOverride,
 } as const;

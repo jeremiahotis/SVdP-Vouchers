@@ -37,6 +37,12 @@ pnpm test:e2e -- --headed
 
 # Debug mode
 pnpm test:e2e -- --debug
+
+# Run Story 2.2 duplicate-policy integration automation
+tsx tests/integration/voucher-duplicate-policy-window.ts
+
+# Run Story 2.2 tenant-isolation automation
+tsx tests/tenant-isolation/voucher-duplicate-policy-window.ts
 ```
 
 ## Architecture Overview

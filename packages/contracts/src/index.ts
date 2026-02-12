@@ -10,12 +10,16 @@ export {
 export { TENANT_HOST_PATTERN, TENANT_HOST_EXAMPLE } from "./constants/tenant-routing.js";
 export {
   VOUCHER_ISSUANCE_LIMITS,
+  VOUCHER_DUPLICATE_POLICY_LIMITS,
+  VOUCHER_DUPLICATE_POLICY_ACTIONS,
   DEFAULT_TENANT_ALLOWED_VOUCHER_TYPES,
   voucherIssuanceBodyJsonSchema,
   voucherIssuedDataJsonSchema,
   voucherPendingDataJsonSchema,
   voucherIssuanceResponseDataJsonSchema,
   normalizeVoucherIssuancePayload,
+  normalizeVoucherIdentityKey,
+  resolveVoucherDuplicatePolicyWindowDays,
   validateVoucherIssuancePayload,
 } from "./constants/voucher-issuance.js";
 export type { RefusalReason } from "./constants/refusal-reasons.js";
@@ -28,6 +32,9 @@ export type {
 } from "./constants/partner-form-config.js";
 export type {
   VoucherIssuancePayload,
+  VoucherDuplicatePolicyAction,
+  VoucherDuplicatePolicyOutcome,
+  VoucherIdentityKey,
   VoucherIssuanceValidationError,
   VoucherIssuanceValidationResult,
 } from "./constants/voucher-issuance.js";
