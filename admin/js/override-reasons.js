@@ -1,7 +1,7 @@
-(function ($) {
+(function($) {
     'use strict';
 
-    $(document).ready(function () {
+    $(document).ready(function() {
         if ($('#svdp-reasons-list').length === 0) {
             return; // Not on reasons tab
         }
@@ -9,7 +9,7 @@
         loadReasons();
 
         // Add reason
-        $('#svdp-add-reason').on('click', function () {
+        $('#svdp-add-reason').on('click', function() {
             const reasonText = $('#svdp-new-reason-text').val().trim();
 
             if (!reasonText) {
@@ -25,7 +25,7 @@
                     nonce: svdpAdmin.nonce,
                     reason_text: reasonText
                 },
-                success: function (response) {
+                success: function(response) {
                     if (response.success) {
                         $('#svdp-new-reason-text').val('');
                         loadReasons();
@@ -33,14 +33,14 @@
                         alert('Error: ' + response.data);
                     }
                 },
-                error: function () {
+                error: function() {
                     alert('Failed to add reason');
                 }
             });
         });
 
         // Edit reason
-        $(document).on('click', '.svdp-edit-reason', function () {
+        $(document).on('click', '.svdp-edit-reason', function() {
             const id = $(this).data('id');
             const text = $(this).data('text');
 
@@ -50,7 +50,7 @@
         });
 
         // Save edit
-        $('#svdp-save-reason-edit').on('click', function () {
+        $('#svdp-save-reason-edit').on('click', function() {
             const id = $('#svdp-edit-reason-id').val();
             const text = $('#svdp-edit-reason-text').val().trim();
 
@@ -68,7 +68,7 @@
                     id: id,
                     reason_text: text
                 },
-                success: function (response) {
+                success: function(response) {
                     if (response.success) {
                         $('#svdp-edit-reason-modal').hide();
                         loadReasons();
@@ -76,14 +76,14 @@
                         alert('Error: ' + response.data);
                     }
                 },
-                error: function () {
+                error: function() {
                     alert('Failed to update reason');
                 }
             });
         });
 
         // Delete reason
-        $(document).on('click', '.svdp-delete-reason', function () {
+        $(document).on('click', '.svdp-delete-reason', function() {
             if (!confirm('Delete this reason? This cannot be undone.')) {
                 return;
             }
@@ -98,14 +98,14 @@
                     nonce: svdpAdmin.nonce,
                     id: id
                 },
-                success: function (response) {
+                success: function(response) {
                     if (response.success) {
                         loadReasons();
                     } else {
                         alert('Error: ' + response.data);
                     }
                 },
-                error: function () {
+                error: function() {
                     alert('Failed to delete reason');
                 }
             });
@@ -117,10 +117,10 @@
             url: svdpAdmin.ajaxUrl,
             method: 'POST',
             data: {
-                action: 'svdp_get_override_reasons',
+                action: 'svdp_get_reasons',
                 nonce: svdpAdmin.nonce
             },
-            success: function (response) {
+            success: function(response) {
                 if (response.success) {
                     renderReasons(response.data);
                 }
@@ -137,7 +137,7 @@
             return;
         }
 
-        reasons.forEach(function (reason, index) {
+        reasons.forEach(function(reason, index) {
             const statusClass = reason.active == 1 ? 'reason-status-active' : 'reason-status-inactive';
             const statusText = reason.active == 1 ? 'Active' : 'Inactive';
 
@@ -169,7 +169,7 @@
         // Enable sortable
         tbody.sortable({
             handle: '.svdp-drag-handle',
-            update: function (event, ui) {
+            update: function(event, ui) {
                 saveOrder();
             }
         });
@@ -177,7 +177,7 @@
 
     function saveOrder() {
         const order = [];
-        $('#svdp-reasons-list tr').each(function () {
+        $('#svdp-reasons-list tr').each(function() {
             const id = $(this).data('id');
             if (id) {
                 order.push(id);
@@ -188,11 +188,11 @@
             url: svdpAdmin.ajaxUrl,
             method: 'POST',
             data: {
-                action: 'svdp_save_override_reasons',
+                action: 'svdp_reorder_reasons',
                 nonce: svdpAdmin.nonce,
-                reasons: order // Changed to reasons to match PHP expected key
+                order: order
             },
-            success: function (response) {
+            success: function(response) {
                 if (!response.success) {
                     alert('Failed to save order');
                     loadReasons(); // Reload to reset

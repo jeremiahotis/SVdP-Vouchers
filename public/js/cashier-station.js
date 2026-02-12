@@ -1,4 +1,4 @@
-(function ($) {
+(function($) {
     'use strict';
 
     // Global variables for card-based rendering
@@ -14,35 +14,27 @@
     let currentCoatVoucher = null;    // For coat modal
     let currentRedemptionVoucher = null; // For redemption modal
     let itemValues = svdpVouchers.itemValues || { adult: 5.00, child: 3.00 }; // Item values from settings
-    let readOnlyMode = false;
 
-    $(document).ready(function () {
+    $(document).ready(function() {
         // Check if we're on the cashier station page
         if ($('#svdpVouchersContainer').length === 0) {
             return; // Not on cashier station page, exit
         }
 
-        const cashierContainer = $('.svdp-cashier-container');
-        readOnlyMode = cashierContainer.data('read-only') === 1
-            || cashierContainer.data('read-only') === true
-            || cashierContainer.data('read-only') === '1';
-
         // Small delay to ensure DOM is fully ready
-        setTimeout(function () {
+        setTimeout(function() {
             setupEventListeners();
-            if (!readOnlyMode) {
-                initializeEmergencyForm();
-                initializeModal();
-                initializeCoatModal();
-                initializeRedemptionModal();
-                loadOverrideReasons(); // Load dropdown options
-            }
+            initializeEmergencyForm();
+            initializeModal();
+            initializeCoatModal();
+            initializeRedemptionModal();
             loadItemValues();
+            loadOverrideReasons(); // Load dropdown options
             loadVouchers();
             setupHeartbeat();
 
             // Auto-refresh every 30 seconds
-            autoRefreshInterval = setInterval(function () {
+            autoRefreshInterval = setInterval(function() {
                 if (autoRefreshEnabled) {
                     loadVouchers(true); // Silent refresh
                 }
@@ -62,27 +54,26 @@
         $.ajax({
             url: svdpVouchers.restUrl + 'svdp/v1/vouchers',
             method: 'GET',
-            cache: false, // Prevent caching
             headers: {
                 'X-WP-Nonce': svdpVouchers.nonce
             },
-            success: function (response) {
+            success: function(response) {
                 allVouchers = response;
                 filterAndRenderVouchers();
                 $('#svdpLoadingState').hide();
             },
-            error: function (xhr) {
+            error: function(xhr) {
                 // Handle 403 (nonce expired) specially
                 if (xhr.status === 403) {
-                    handleAuthError(function () {
+                    handleAuthError(function() {
                         // Retry after nonce refresh
                         loadVouchers(silent);
-                    }, function () {
+                    }, function() {
                         // Nonce refresh failed - show error
-                        handleLoadError(xhr, silent);
+                        handleLoadError(xhr);
                     });
                 } else {
-                    handleLoadError(xhr, silent);
+                    handleLoadError(xhr);
                 }
             }
         });
@@ -91,18 +82,10 @@
     /**
      * Handle errors when loading vouchers
      */
-    function handleLoadError(xhr, silent = false) {
-        // If silent refresh (auto-refresh), do not wipe out the UI with an error message.
-        // Just log it and maybe show a small toast if critical, but mostly ignore to keep UI stable.
-        if (silent) {
-            console.warn('Silent refresh failed:', xhr.status, xhr.statusText);
-            $('#svdpLoadingState').hide();
-            return;
-        }
-
+    function handleLoadError(xhr) {
         let errorMsg = '';
 
-        if (xhr.status === 401 || xhr.status === 403) {
+        if (xhr.status === 401 || xhr.status === 403 || xhr.status === 0) {
             // Authentication expired - STOP auto-refresh
             autoRefreshEnabled = false;
             errorMsg = '<div class="svdp-error-message">';
@@ -111,7 +94,7 @@
             errorMsg += '<button onclick="location.reload()" class="svdp-btn svdp-btn-primary">Refresh Page</button>';
             errorMsg += '</div>';
         } else {
-            // Temporary error (including status 0/Network error) - KEEP auto-refresh running
+            // Temporary error - KEEP auto-refresh running
             errorMsg = '<div class="svdp-error-message warning">';
             errorMsg += '<h3>⚠️ Temporary Error</h3>';
             errorMsg += '<p>Could not load vouchers (Status: ' + xhr.status + '). Will retry in 30 seconds...</p>';
@@ -130,7 +113,7 @@
      */
     function filterAndRenderVouchers() {
         // Filter vouchers
-        filteredVouchers = allVouchers.filter(function (v) {
+        filteredVouchers = allVouchers.filter(function(v) {
             // Search filter
             if (searchTerm) {
                 const searchable = (v.first_name + ' ' + v.last_name + ' ' + v.dob + ' ' + v.conference_name).toLowerCase();
@@ -147,7 +130,7 @@
         });
 
         // Sort vouchers
-        filteredVouchers.sort(function (a, b) {
+        filteredVouchers.sort(function(a, b) {
             if (currentSort === 'date-desc') {
                 return new Date(b.voucher_created_date) - new Date(a.voucher_created_date);
             } else if (currentSort === 'date-asc') {
@@ -187,7 +170,7 @@
 
         // Render cards up to displayCount
         const vouchersToShow = filteredVouchers.slice(0, displayCount);
-        vouchersToShow.forEach(function (voucher) {
+        vouchersToShow.forEach(function(voucher) {
             container.append(renderVoucherCard(voucher));
         });
 
@@ -243,7 +226,7 @@
         card += '<div class="svdp-detail-item">';
         card += '<span class="svdp-detail-label">DOB</span>';
         card += '<span class="svdp-detail-value">' + formatDateToUS(voucher.dob) + '</span>';
-        card += '</div>'; card += '<div class="svdp-detail-item">';
+        card += '</div>';        card += '<div class="svdp-detail-item">';
         card += '<span class="svdp-detail-label">Household</span>';
         card += '<span class="svdp-detail-value">' + total + ' people</span>';
         card += '</div>';
@@ -279,7 +262,12 @@
                 card += '<span class="svdp-detail-value">' + totalRedeemed + ' (' + (voucher.items_adult_redeemed || 0) + ' adult, ' + (voucher.items_children_redeemed || 0) + ' child)</span>';
                 card += '</div>';
             }
-            // Dollar Value REMOVED per user request
+            if (voucher.redemption_total_value) {
+                card += '<div class="svdp-detail-item">';
+                card += '<span class="svdp-detail-label">Redemption Value</span>';
+                card += '<span class="svdp-detail-value">$' + parseFloat(voucher.redemption_total_value).toFixed(2) + '</span>';
+                card += '</div>';
+            }
         }
 
         card += '</div>'; // End card details
@@ -287,29 +275,27 @@
         // Coat Info
         card += renderCoatInfo(voucher);
 
-        // Card Actions (skip in read-only mode)
-        if (!readOnlyMode) {
-            card += '<div class="svdp-card-actions">';
+        // Card Actions
+        card += '<div class="svdp-card-actions">';
 
-            if (voucher.status === 'Active') {
-                card += '<button class="svdp-btn svdp-btn-success svdp-redeem-btn" data-id="' + voucher.id + '">';
-                card += '✓ Mark Redeemed';
-                card += '</button>';
-            }
-
-            if (voucher.coat_eligible && voucher.coat_status !== 'Issued') {
-                card += '<button class="svdp-btn svdp-btn-coat svdp-issue-coat" ';
-                card += 'data-id="' + voucher.id + '" ';
-                card += 'data-adults="' + voucher.adults + '" ';
-                card += 'data-children="' + voucher.children + '" ';
-                card += 'data-firstname="' + voucher.first_name + '" ';
-                card += 'data-lastname="' + voucher.last_name + '">';
-                card += '🧥 Issue Coat';
-                card += '</button>';
-            }
-
-            card += '</div>'; // End card actions
+        if (voucher.status === 'Active') {
+            card += '<button class="svdp-btn svdp-btn-success svdp-redeem-btn" data-id="' + voucher.id + '">';
+            card += '✓ Mark Redeemed';
+            card += '</button>';
         }
+
+        if (voucher.coat_eligible && voucher.coat_status !== 'Issued') {
+            card += '<button class="svdp-btn svdp-btn-coat svdp-issue-coat" ';
+            card += 'data-id="' + voucher.id + '" ';
+            card += 'data-adults="' + voucher.adults + '" ';
+            card += 'data-children="' + voucher.children + '" ';
+            card += 'data-firstname="' + voucher.first_name + '" ';
+            card += 'data-lastname="' + voucher.last_name + '">';
+            card += '🧥 Issue Coat';
+            card += '</button>';
+        }
+
+        card += '</div>'; // End card actions
         card += '</div>'; // End card
 
         return card;
@@ -344,12 +330,8 @@
      * Attach event listeners to card action buttons
      */
     function attachCardEventListeners() {
-        if (readOnlyMode) {
-            return;
-        }
-
         // Redeem button - open redemption modal
-        $('.svdp-redeem-btn').off('click').on('click', function () {
+        $('.svdp-redeem-btn').off('click').on('click', function() {
             const voucherId = $(this).data('id');
             const voucher = allVouchers.find(v => v.id == voucherId);
             if (voucher) {
@@ -358,7 +340,7 @@
         });
 
         // Issue coat button
-        $('.svdp-issue-coat').off('click').on('click', function () {
+        $('.svdp-issue-coat').off('click').on('click', function() {
             const voucherId = $(this).data('id');
             const adults = parseInt($(this).data('adults')) || 0;
             const children = parseInt($(this).data('children')) || 0;
@@ -398,13 +380,13 @@
      */
     function setupEventListeners() {
         // Search input
-        $('#svdpSearchInput').on('input', function () {
+        $('#svdpSearchInput').on('input', function() {
             searchTerm = $(this).val().toLowerCase();
             filterAndRenderVouchers();
         });
 
         // Filter buttons
-        $('.svdp-filter-btn').on('click', function () {
+        $('.svdp-filter-btn').on('click', function() {
             $('.svdp-filter-btn').removeClass('active');
             $(this).addClass('active');
             currentFilter = $(this).data('filter');
@@ -412,13 +394,13 @@
         });
 
         // Sort dropdown
-        $('#svdpSortDropdown').on('change', function () {
+        $('#svdpSortDropdown').on('change', function() {
             currentSort = $(this).val();
             filterAndRenderVouchers();
         });
 
         // Load More button
-        $('#svdpLoadMore').on('click', function () {
+        $('#svdpLoadMore').on('click', function() {
             loadMoreVouchers();
         });
     }
@@ -435,14 +417,14 @@
             },
             data: JSON.stringify({ status: newStatus }),
             contentType: 'application/json',
-            success: function () {
+            success: function() {
                 loadVouchers(true); // Silent reload
             },
-            error: function (xhr) {
+            error: function(xhr) {
                 if (xhr.status === 403) {
-                    handleAuthError(function () {
+                    handleAuthError(function() {
                         updateVoucherStatus(voucherId, newStatus); // Retry
-                    }, function () {
+                    }, function() {
                         alert('Error updating status: Session expired. Please refresh the page.');
                     });
                 } else {
@@ -459,7 +441,7 @@
         const form = $('#svdpEmergencyForm');
         const messageDiv = $('#svdpEmergencyMessage');
 
-        form.on('submit', function (e) {
+        form.on('submit', function(e) {
             e.preventDefault();
 
             const submitBtn = form.find('button[type="submit"]');
@@ -473,7 +455,6 @@
                 adults: parseInt($('input[name="adults"]', form).val()),
                 children: parseInt($('input[name="children"]', form).val()),
                 conference: 'emergency',
-                voucherType: 'clothing'
             };
 
             // Check for duplicate
@@ -487,11 +468,10 @@
                     firstName: formData.firstName,
                     lastName: formData.lastName,
                     dob: formData.dob,
-                    createdBy: 'Cashier',
-                    voucherType: 'clothing'
+                    createdBy: 'Cashier'
                 }),
                 contentType: 'application/json',
-                success: function (response) {
+                success: function(response) {
                     if (response.found && response.matchType === 'exact') {
                         // EXACT match - show override modal
                         showOverrideModal(response, formData);
@@ -504,7 +484,7 @@
                         createEmergencyVoucher(formData, submitBtn, messageDiv, form);
                     }
                 },
-                error: function (xhr) {
+                error: function(xhr) {
                     const error = xhr.responseJSON?.message || 'Error checking for duplicates';
                     messageDiv.html(error).addClass('error').fadeIn();
                     submitBtn.prop('disabled', false).text('Create Emergency Voucher');
@@ -521,7 +501,7 @@
         warning += '<strong>⚠️ Similar Name(s) Found</strong><br><br>';
         warning += 'We found ' + similarData.matches.length + ' voucher(s) with similar name(s) and the same date of birth:<br><br>';
 
-        similarData.matches.forEach(function (match) {
+        similarData.matches.forEach(function(match) {
             warning += '<div style="margin: 10px 0; padding: 10px; background: white; border-left: 3px solid #ffc107;">';
             warning += '<strong>' + match.firstName + ' ' + match.lastName + '</strong><br>';
             warning += 'DOB: ' + match.dob + '<br>';
@@ -544,13 +524,13 @@
         submitBtn.prop('disabled', false).text('Create Emergency Voucher');
 
         // Handle proceed
-        $('#svdpProceedAnyway').on('click', function () {
+        $('#svdpProceedAnyway').on('click', function() {
             messageDiv.fadeOut();
             createEmergencyVoucher(formData, submitBtn, messageDiv, form);
         });
 
         // Handle cancel
-        $('#svdpCancelSimilar').on('click', function () {
+        $('#svdpCancelSimilar').on('click', function() {
             messageDiv.fadeOut();
             form[0].reset();
         });
@@ -563,21 +543,18 @@
         $.ajax({
             url: svdpVouchers.restUrl + 'svdp/v1/override-reasons',
             method: 'GET',
-            headers: {
-                'X-WP-Nonce': svdpVouchers.nonce
-            },
-            success: function (reasons) {
+            success: function(reasons) {
                 const select = $('#svdpOverrideReason');
                 select.empty().append('<option value="">Select a reason...</option>');
 
-                reasons.forEach(function (reason) {
+                reasons.forEach(function(reason) {
                     select.append($('<option>', {
                         value: reason.id,
                         text: reason.reason_text
                     }));
                 });
             },
-            error: function () {
+            error: function() {
                 console.error('Failed to load override reasons');
             }
         });
@@ -613,7 +590,7 @@
      * Initialize override modal
      */
     function initializeModal() {
-        $('#svdpCancelOverride').on('click', function () {
+        $('#svdpCancelOverride').on('click', function() {
             // Save denied voucher when they cancel
             if (pendingOverrideData) {
                 saveDeniedVoucher(pendingOverrideData.formData, pendingOverrideData.duplicateData);
@@ -624,7 +601,7 @@
             pendingOverrideData = null;
         });
 
-        $('#svdpConfirmOverride').on('click', function () {
+        $('#svdpConfirmOverride').on('click', function() {
             const managerCode = $('#svdpManagerCode').val().trim();
             const reasonId = $('#svdpOverrideReason').val();
 
@@ -652,7 +629,7 @@
                 },
                 data: JSON.stringify({ code: managerCode }),
                 contentType: 'application/json',
-                success: function (response) {
+                success: function(response) {
                     if (response.valid) {
                         // Code is valid - attach manager_id and reason_id
                         pendingOverrideData.formData.manager_id = response.id;
@@ -673,7 +650,7 @@
                         $('#svdpManagerCode').val('').focus();
                     }
                 },
-                error: function () {
+                error: function() {
                     alert('Error validating manager code. Please try again.');
                 }
             });
@@ -685,23 +662,23 @@
      */
     function initializeCoatModal() {
         // Update coat total when numbers change
-        $('#svdpCoatAdults, #svdpCoatChildren').on('input', function () {
+        $('#svdpCoatAdults, #svdpCoatChildren').on('input', function() {
             updateCoatTotal();
         });
 
         // Cancel coat modal
-        $('#svdpCancelCoat').on('click', function () {
+        $('#svdpCancelCoat').on('click', function() {
             closeCoatModal();
         });
 
         // Submit coat form
-        $('#svdpCoatForm').on('submit', function (e) {
+        $('#svdpCoatForm').on('submit', function(e) {
             e.preventDefault();
             submitCoatIssuance();
         });
 
         // Close modal on background click
-        $('#svdpCoatModal').on('click', function (e) {
+        $('#svdpCoatModal').on('click', function(e) {
             if (e.target === this) {
                 closeCoatModal();
             }
@@ -769,7 +746,7 @@
                 adults: adults,
                 children: children
             }),
-            success: function (response) {
+            success: function(response) {
                 closeCoatModal();
                 showMessage('success',
                     '✅ Successfully issued ' + response.total + ' coat(s): ' +
@@ -778,22 +755,22 @@
                 );
                 loadVouchers(true); // Silent reload
 
-                setTimeout(function () {
+                setTimeout(function() {
                     messageDiv.fadeOut();
                 }, 5000);
             },
-            error: function (xhr) {
+            error: function(xhr) {
                 if (xhr.status === 403) {
-                    handleAuthError(function () {
+                    handleAuthError(function() {
                         submitCoatIssuance(); // Retry
-                    }, function () {
+                    }, function() {
                         showMessage('error', 'Session expired. Please refresh the page.', messageDiv);
                     });
                 } else {
                     showMessage('error', 'Failed to issue coats: ' + (xhr.responseJSON?.message || 'Unknown error'), messageDiv);
                 }
             },
-            complete: function () {
+            complete: function() {
                 submitBtn.prop('disabled', false).text('Issue Coats');
             }
         });
@@ -813,23 +790,23 @@
      */
     function initializeRedemptionModal() {
         // Cancel button
-        $('#svdpCancelRedemption').on('click', function () {
+        $('#svdpCancelRedemption').on('click', function() {
             closeRedemptionModal();
         });
 
         // Form submission
-        $('#svdpRedemptionForm').on('submit', function (e) {
+        $('#svdpRedemptionForm').on('submit', function(e) {
             e.preventDefault();
             submitRedemption();
         });
 
         // Real-time item calculation
-        $('#svdpItemsAdult, #svdpItemsChildren').on('input', function () {
+        $('#svdpItemsAdult, #svdpItemsChildren').on('input', function() {
             updateRedemptionSummary();
         });
 
         // Click outside modal to close
-        $('#svdpRedemptionModal').on('click', function (e) {
+        $('#svdpRedemptionModal').on('click', function(e) {
             if ($(e.target).is('#svdpRedemptionModal')) {
                 closeRedemptionModal();
             }
@@ -865,15 +842,14 @@
         $('#svdpMaxTotalItems').text(maxTotalItems);
 
         // Reset form
-        $('#svdpRedemptionForm')[0].reset();
+        $('#svdpItemsAdult').attr('max', maxAdultItems).val(0);
+        $('#svdpItemsChildren').attr('max', maxChildItems).val(0);
 
         // Reset error
         $('#svdpRedemptionError').hide();
 
         updateRedemptionSummary();
-        $('#svdpRedemptionModal').fadeIn(200, function () {
-            $('#svdpReceiptId').focus();
-        });
+        $('#svdpRedemptionModal').fadeIn(200);
     }
 
     /**
@@ -889,10 +865,45 @@
      * Update redemption summary
      */
     function updateRedemptionSummary() {
-        // Validation - purely based on Receipt ID now (handled on submit)
+        const adultItems = parseInt($('#svdpItemsAdult').val()) || 0;
+        const childItems = parseInt($('#svdpItemsChildren').val()) || 0;
+        const totalItems = adultItems + childItems;
+
+        const maxAdultItems = parseInt($('#svdpMaxAdultItems').text()) || 0;
+        const maxChildItems = parseInt($('#svdpMaxChildItems').text()) || 0;
+        const maxTotalItems = parseInt($('#svdpMaxTotalItems').text()) || 0;
+
+        // Calculate estimated value
+        const estimatedValue = (adultItems * itemValues.adult) + (childItems * itemValues.child);
+
+        // Update display
+        $('#svdpTotalItems').text(totalItems);
+        $('#svdpEstimatedValue').text(estimatedValue.toFixed(2));
+
+        // Validation
         const errorDiv = $('#svdpRedemptionError');
-        errorDiv.hide();
-        $('#svdpConfirmRedemption').prop('disabled', false);
+        let errors = [];
+
+        if (adultItems > maxAdultItems) {
+            errors.push('Adult items exceed maximum (' + maxAdultItems + ')');
+        }
+        if (childItems > maxChildItems) {
+            errors.push('Child items exceed maximum (' + maxChildItems + ')');
+        }
+        if (totalItems > maxTotalItems) {
+            errors.push('Total items exceed maximum (' + maxTotalItems + ')');
+        }
+        if (totalItems === 0) {
+            errors.push('Must provide at least 1 item');
+        }
+
+        if (errors.length > 0) {
+            errorDiv.html('⚠️ ' + errors.join('<br>⚠️ ')).show();
+            $('#svdpConfirmRedemption').prop('disabled', true);
+        } else {
+            errorDiv.hide();
+            $('#svdpConfirmRedemption').prop('disabled', false);
+        }
     }
 
     /**
@@ -900,13 +911,9 @@
      */
     function submitRedemption() {
         const voucherId = $('#svdpRedemptionVoucherId').val();
-        const receiptId = $('#svdpReceiptId').val().trim();
+        const adultItems = parseInt($('#svdpItemsAdult').val()) || 0;
+        const childItems = parseInt($('#svdpItemsChildren').val()) || 0;
         const messageDiv = $('#svdpEmergencyMessage');
-
-        if (!receiptId) {
-            $('#svdpRedemptionError').text('⚠️ Receipt ID is required.').show();
-            return;
-        }
 
         const submitBtn = $('#svdpConfirmRedemption');
         submitBtn.prop('disabled', true).text('Redeeming...');
@@ -920,48 +927,34 @@
             },
             data: JSON.stringify({
                 status: 'Redeemed',
-                receipt_id: receiptId
+                items_adult: adultItems,
+                items_children: childItems
             }),
-            success: function (response) {
+            success: function(response) {
                 closeRedemptionModal();
                 showMessage('success',
                     '✅ Voucher redeemed successfully! ' +
-                    'Receipt: ' + receiptId,
+                    'Items: ' + (adultItems + childItems) + ', Value: $' + response.redemption_value,
                     messageDiv
                 );
+                loadVouchers(true); // Silent reload
 
-                // Optimistic Update: Update local state immediately to prevent flicker
-                const voucherIndex = allVouchers.findIndex(v => v.id == voucherId);
-                if (voucherIndex > -1) {
-                    allVouchers[voucherIndex].status = 'Redeemed';
-                    allVouchers[voucherIndex].redeemed_date = new Date().toISOString().split('T')[0]; // Today
-                    allVouchers[voucherIndex].receipt_id = receiptId;
-                    // Update item redemption counts if returned, otherwise assume full
-                    if (response.items_adult_redeemed !== undefined) {
-                        allVouchers[voucherIndex].items_adult_redeemed = response.items_adult_redeemed;
-                        allVouchers[voucherIndex].items_children_redeemed = response.items_children_redeemed;
-                    }
-
-                    filterAndRenderVouchers(); // Re-render immediately
-                }
-
-                // Background sync
-                setTimeout(() => {
-                    loadVouchers(true);
-                }, 500); // Small delay to let DB settle
+                setTimeout(function() {
+                    messageDiv.fadeOut();
+                }, 5000);
             },
-            error: function (xhr) {
+            error: function(xhr) {
                 if (xhr.status === 403) {
-                    handleAuthError(function () {
+                    handleAuthError(function() {
                         submitRedemption(); // Retry
-                    }, function () {
+                    }, function() {
                         showMessage('error', 'Session expired. Please refresh the page.', messageDiv);
                     });
                 } else {
                     showMessage('error', 'Failed to redeem voucher: ' + (xhr.responseJSON?.message || 'Unknown error'), messageDiv);
                 }
             },
-            complete: function () {
+            complete: function() {
                 submitBtn.prop('disabled', false).text('Mark as Redeemed');
             }
         });
@@ -990,14 +983,9 @@
             },
             data: JSON.stringify(formData),
             contentType: 'application/json',
-            success: function (response) {
-                // Calculate items based on response or form data
-                const itemsAdult = response.computedTests ? response.computedTests.itemsAdult : (formData.adults * 3);
-                const itemsChildren = response.computedTests ? response.computedTests.itemsChildren : (formData.children * 3);
-
+            success: function(response) {
                 messageDiv
-                    .html('✅ Emergency voucher created successfully!' +
-                        '<br>Allowed Items: <strong>' + itemsAdult + '</strong> (Adults), <strong>' + itemsChildren + '</strong> (Children)')
+                    .html('✅ Emergency voucher created successfully!')
                     .removeClass('error')
                     .addClass('success')
                     .fadeIn();
@@ -1005,17 +993,17 @@
                 form[0].reset();
                 loadVouchers(true); // Silent reload
 
-                setTimeout(function () {
+                setTimeout(function() {
                     messageDiv.fadeOut();
                 }, 5000);
 
                 submitBtn.prop('disabled', false).text('Create Emergency Voucher');
             },
-            error: function (xhr) {
+            error: function(xhr) {
                 if (xhr.status === 403) {
-                    handleAuthError(function () {
+                    handleAuthError(function() {
                         createEmergencyVoucher(formData, submitBtn, messageDiv, form); // Retry
-                    }, function () {
+                    }, function() {
                         const error = 'Session expired. Please refresh the page.';
                         messageDiv.html(error).removeClass('success').addClass('error').fadeIn();
                         submitBtn.prop('disabled', false).text('Create Emergency Voucher');
@@ -1034,9 +1022,9 @@
      */
     function saveDeniedVoucher(formData, duplicateData) {
         const denialReason = 'Duplicate found: ' + duplicateData.firstName + ' ' + duplicateData.lastName +
-            ' received voucher from ' + duplicateData.conference +
-            ' on ' + duplicateData.voucherCreatedDate +
-            '. Next eligible: ' + duplicateData.nextEligibleDate;
+                            ' received voucher from ' + duplicateData.conference +
+                            ' on ' + duplicateData.voucherCreatedDate +
+                            '. Next eligible: ' + duplicateData.nextEligibleDate;
 
         $.ajax({
             url: svdpVouchers.restUrl + 'svdp/v1/vouchers/create-denied',
@@ -1079,7 +1067,7 @@
         let timedOut = false;
 
         // Set up one-time listener for next heartbeat tick
-        let tickHandler = function (event, data) {
+        let tickHandler = function(event, data) {
             if (timedOut) return;
 
             if (data.svdp_heartbeat_status === 'active') {
@@ -1104,7 +1092,7 @@
         wp.heartbeat.connectNow();
 
         // Timeout fallback in case heartbeat fails
-        setTimeout(function () {
+        setTimeout(function() {
             timedOut = true;
             $(document).off('heartbeat-tick', tickHandler);
 
@@ -1129,12 +1117,12 @@
         }
 
         // Send cashier station flag on every heartbeat
-        $(document).on('heartbeat-send', function (event, data) {
+        $(document).on('heartbeat-send', function(event, data) {
             data.svdp_cashier_active = true;
         });
 
         // Receive heartbeat response
-        $(document).on('heartbeat-tick', function (event, data) {
+        $(document).on('heartbeat-tick', function(event, data) {
             if (data.svdp_heartbeat_status === 'logged_out') {
                 // User was logged out server-side
                 handleLoadError({ status: 401 });
@@ -1149,7 +1137,7 @@
         });
 
         // Handle heartbeat errors (optional logging)
-        $(document).on('heartbeat-error', function (event, jqXHR, textStatus) {
+        $(document).on('heartbeat-error', function(event, jqXHR, textStatus) {
             console.warn('Heartbeat error:', textStatus);
             // Don't stop auto-refresh - heartbeat is supplementary
         });

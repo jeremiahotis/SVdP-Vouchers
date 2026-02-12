@@ -1,21 +1,4 @@
-# VoucherShyft
-
-Standalone, multi-tenant voucher program module for the Shyft ecosystem.
-
-## VoucherShyft Quickstart (Standalone)
-1. Copy `.env.example` to `.env` and set Postgres + JWT values.
-2. Start services: `infra/scripts/compose.sh up -d`.
-3. Run migrations: `infra/scripts/compose.sh run --rm migrate`.
-4. Seed the platform registry (one-time): `ALLOW_PLATFORM_SEED=true pnpm seed:platform`.
-
-### Platform Registry (Tenants + App Enablement)
-VoucherShyft uses `platform.tenants` and `platform.tenant_apps` as the canonical registry.
-On first deploy, run the seed script above to create the first tenant + enable the app.
-Subsequent tenants should be provisioned via the admin API (platform admin role).
-
----
-
-## Legacy SVdP Vouchers (WordPress Plugin Reference)
+# SVdP Vouchers
 
 A comprehensive virtual clothing voucher management system for St. Vincent de Paul organizations.
 
