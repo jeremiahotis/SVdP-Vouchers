@@ -15,7 +15,7 @@
     margin: 0 auto;
     background: #fff;
     border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 /* Form Introduction */
@@ -114,166 +114,6 @@
     box-shadow: 0 0 0 3px rgba(0, 107, 168, 0.1);
 }
 
-.svdp-form-group textarea {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 14px;
-    box-sizing: border-box;
-}
-
-.svdp-voucher-type-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 12px;
-}
-
-.svdp-voucher-type-card {
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    padding: 12px;
-    background: #fafafa;
-}
-
-.svdp-voucher-type-card.is-single {
-    border: 1px solid #006BA8;
-    background: #f0f6fa;
-}
-
-.svdp-type-section {
-    margin: 20px 0;
-    padding: 12px;
-    border: 1px solid #e2e2e2;
-    border-radius: 6px;
-    background: #fff;
-}
-
-.svdp-catalog-categories {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 10px;
-    margin-bottom: 12px;
-}
-
-.svdp-category-tile {
-    padding: 12px;
-    border: 1px solid #d6d6d6;
-    border-radius: 6px;
-    background: #f7f7f7;
-    cursor: pointer;
-    font-weight: 600;
-    text-align: left;
-}
-
-.svdp-category-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
-}
-
-.svdp-back-to-categories {
-    padding: 6px 10px;
-    border: 1px solid #ccc;
-    background: #fff;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.svdp-item {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    border-bottom: 1px solid #eee;
-    padding: 10px 0;
-}
-
-.svdp-item:last-child {
-    border-bottom: none;
-}
-
-.svdp-item-name {
-    font-weight: 600;
-}
-
-.svdp-item-flags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-}
-
-.svdp-item-flag {
-    display: inline-flex !important;
-    align-items: center;
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 600;
-    line-height: 1.2;
-    background: #f3f3f3;
-    color: #333;
-    border: 1px solid transparent;
-}
-
-.svdp-flag-paused {
-    background: #fff3cd !important;
-    color: #856404 !important;
-    border-color: #ffeeba !important;
-}
-
-.svdp-flag-out {
-    background: #ffe1e1 !important;
-    color: #721c24 !important;
-    border-color: #f5c6cb !important;
-}
-
-.svdp-qty-controls {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.svdp-qty-input {
-    width: 70px;
-    text-align: center;
-}
-
-.svdp-qty-btn {
-    width: 32px;
-    height: 32px;
-    border: 1px solid #ccc;
-    background: #fff;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.svdp-toggle-note {
-    width: fit-content;
-    padding: 6px 10px;
-    border: 1px solid #ccc;
-    background: #fff;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.svdp-item-note {
-    width: 100%;
-}
-
-.svdp-totals {
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px dashed #ddd;
-    font-size: 14px;
-}
-
-.svdp-empty-category {
-    color: #666;
-    font-size: 13px;
-    padding: 8px 0;
-}
-
 .svdp-help-text {
     display: block;
     margin-top: 5px;
@@ -363,32 +203,13 @@
     padding: 20px;
     border-radius: 8px;
     margin-bottom: 20px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .svdp-cashier-header h1 {
     font-size: 24px;
     color: #333;
     margin: 0 0 15px 0;
-}
-
-.svdp-read-only-badge {
-    display: inline-block;
-    margin-left: 10px;
-    padding: 4px 10px;
-    font-size: 12px;
-    font-weight: 600;
-    color: #5a3e00;
-    background: #fff3cd;
-    border: 1px solid #ffecb5;
-    border-radius: 999px;
-    vertical-align: middle;
-}
-
-.svdp-read-only-note {
-    margin: 0 0 15px 0;
-    font-size: 14px;
-    color: #6b5a2a;
 }
 
 /* Search and Filter Bar */
@@ -463,7 +284,7 @@
     display: flex;
     gap: 30px;
     flex-wrap: wrap;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .svdp-stat-item {
@@ -490,14 +311,6 @@
     gap: 20px;
 }
 
-.svdp-cashier-container.svdp-read-only .svdp-main-content {
-    grid-template-columns: 1fr;
-}
-
-.svdp-cashier-container.svdp-read-only .svdp-emergency-form-wrapper {
-    display: none;
-}
-
 /* Vouchers Section */
 .svdp-vouchers-section {
     display: flex;
@@ -517,13 +330,13 @@
     background: white;
     border-radius: 8px;
     padding: 20px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     transition: all 0.2s;
     border-left: 4px solid #006BA8;
 }
 
 .svdp-voucher-card:hover {
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
     transform: translateY(-2px);
 }
 
@@ -663,13 +476,8 @@
 }
 
 @keyframes spin {
-    0% {
-        transform: rotate(0deg);
-    }
-
-    100% {
-        transform: rotate(360deg);
-    }
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 /* Empty State */
@@ -678,7 +486,7 @@
     border-radius: 8px;
     padding: 60px 20px;
     text-align: center;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .svdp-empty-icon {
@@ -697,7 +505,7 @@
     border-radius: 8px;
     padding: 40px 20px;
     text-align: center;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .svdp-error-message h2 {
@@ -742,7 +550,7 @@
     background: white;
     padding: 20px;
     border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     order: 2;
 }
 
@@ -762,7 +570,7 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0,0,0,0.5);
     z-index: 9999;
     align-items: center;
     justify-content: center;
@@ -775,7 +583,7 @@
     max-width: 500px;
     width: 90%;
     margin: 20px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     max-height: 90vh;
     overflow-y: auto;
 }
@@ -890,19 +698,19 @@
     .svdp-cashier-container {
         padding: 10px;
     }
-
+    
     .svdp-card-details {
         grid-template-columns: 1fr;
     }
-
+    
     .svdp-card-actions {
         flex-direction: column;
     }
-
+    
     .svdp-card-actions .svdp-btn {
         width: 100%;
     }
-
+    
     .svdp-voucher-card {
         padding: 15px;
     }
@@ -914,13 +722,11 @@
     }
 
     .svdp-vouchers-section {
-        order: 1;
-        /* Vouchers stay at top */
-    }
+        order: 1; /* Vouchers stay at top */
+        }
 
     .svdp-emergency-form-wrapper {
-        order: 2;
-        /* Form moves to bottom */
+        order: 2; /* Form moves to bottom */
         margin-top: 20px;
     }
 }
@@ -933,7 +739,6 @@
         overflow-y: auto;
     }
 }
-
 /* Custom Organization Text */
 .svdp-custom-text {
     margin-bottom: 25px;

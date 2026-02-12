@@ -1,9 +1,0 @@
-{
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "jsx": "preserve",
-    "module": "ESNext",
-    "moduleResolution": "Bundler"
-  },
-  "include": ["app", "components", "features", "lib"]
-}

@@ -37,29 +37,16 @@ class SVDP_Shortcodes {
     /**
      * Render cashier station
      * Usage: [svdp_cashier_station]
-     * Optional: [svdp_cashier_station read_only="1"]
      */
     public function render_cashier_station($atts) {
-        $atts = shortcode_atts([
-            'read_only' => 0,
-        ], $atts);
-
         // Check if user is logged in and has cashier role
         if (!is_user_logged_in()) {
             return '<p>You must be logged in to access the cashier station.</p>';
         }
-
-        $can_view = current_user_can('manage_options')
-            || current_user_can('access_cashier_station')
-            || current_user_can('access_cashier_station_view');
-        if (!$can_view) {
+        
+        $user = wp_get_current_user();
+        if (!in_array('svdp_cashier', $user->roles) && !in_array('administrator', $user->roles)) {
             return '<p>You do not have permission to access the cashier station.</p>';
-        }
-
-        $read_only = filter_var($atts['read_only'], FILTER_VALIDATE_BOOLEAN);
-        $can_edit = current_user_can('manage_options') || current_user_can('access_cashier_station');
-        if (!$can_edit) {
-            $read_only = true;
         }
         
         ob_start();
