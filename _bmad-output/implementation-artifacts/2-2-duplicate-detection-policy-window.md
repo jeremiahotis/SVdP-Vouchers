@@ -1,6 +1,6 @@
 # Story 2.2: Duplicate Detection (Policy Window)
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -21,23 +21,23 @@ so that policy is enforced consistently across partners and staff.
 
 ## Tasks / Subtasks
 
-- [ ] Implement duplicate policy contract
-  - [ ] Define configurable policy window and duplicate key shape in shared contracts/config.
-  - [ ] Normalize identity key inputs consistently (case/whitespace/date canonicalization).
-  - [ ] Document refusal/warning reason codes for duplicate outcomes.
-- [ ] Implement duplicate detection domain service
-  - [ ] Add tenant-scoped duplicate query logic in `apps/api/src/vouchers/duplicate/`.
-  - [ ] Apply deterministic policy window boundaries (inclusive/exclusive behavior explicitly tested).
-  - [ ] Return structured outcome (`no_match`, `warning`, `refusal`) for issuance flow integration.
-- [ ] Wire duplicate checks into issuance path
-  - [ ] Execute duplicate check before issuance state mutation.
-  - [ ] Use refusal path for blocking policy and warning path for override-eligible policy.
-  - [ ] Preserve partner scope and tenant constraints for partner-token requests.
-- [ ] Add tests
-  - [ ] Integration test: duplicate refusal in-window.
-  - [ ] Integration test: non-duplicate outside window succeeds.
-  - [ ] Integration test: partner-token issuance uses same duplicate behavior.
-  - [ ] Tenant isolation test: duplicate checks never query/return cross-tenant matches.
+- [x] Implement duplicate policy contract
+  - [x] Define configurable policy window and duplicate key shape in shared contracts/config.
+  - [x] Normalize identity key inputs consistently (case/whitespace/date canonicalization).
+  - [x] Document refusal/warning reason codes for duplicate outcomes.
+- [x] Implement duplicate detection domain service
+  - [x] Add tenant-scoped duplicate query logic in `apps/api/src/vouchers/duplicate/`.
+  - [x] Apply deterministic policy window boundaries (inclusive/exclusive behavior explicitly tested).
+  - [x] Return structured outcome (`no_match`, `warning`, `refusal`) for issuance flow integration.
+- [x] Wire duplicate checks into issuance path
+  - [x] Execute duplicate check before issuance state mutation.
+  - [x] Use refusal path for blocking policy and warning path for override-eligible policy.
+  - [x] Preserve partner scope and tenant constraints for partner-token requests.
+- [x] Add tests
+  - [x] Integration test: duplicate refusal in-window.
+  - [x] Integration test: non-duplicate outside window succeeds.
+  - [x] Integration test: partner-token issuance uses same duplicate behavior.
+  - [x] Tenant isolation test: duplicate checks never query/return cross-tenant matches.
 
 ## Dev Notes
 
@@ -137,14 +137,51 @@ GPT-5
 
 ### Debug Log References
 
-- Story preparation only (no implementation logs).
+- `docker compose -f infra/docker/docker-compose.yml run --rm --build api-test pnpm tsx tests/integration/voucher-duplicate-policy-window.ts`
+- `docker compose -f infra/docker/docker-compose.yml run --rm --build api-test pnpm tsx tests/integration/voucher-duplicate-policy-boundary.ts`
+- `docker compose -f infra/docker/docker-compose.yml run --rm --build api-test pnpm tsx tests/tenant-isolation/voucher-duplicate-policy-window.ts`
+- `docker compose -f infra/docker/docker-compose.yml run --rm --build api-test pnpm test:admin`
+- `docker compose -f infra/docker/docker-compose.yml run --rm --build api-test pnpm test:tenant`
+- `docker compose -f infra/docker/docker-compose.yml run --rm --build api-test pnpm test:db`
 
 ### Completion Notes List
 
-- Story drafted with explicit duplicate policy boundaries and tenant-scope guardrails.
-- Handoff includes clear separation between duplicate detection (this story) and override authorization (Story 2.3).
+- Added shared duplicate policy configuration/identity normalization helpers in contracts (`window_days`, `policy_action`, normalized identity key shape).
+- Added refusal reason codes for duplicate outcomes: `DUPLICATE_IN_POLICY_WINDOW`, `DUPLICATE_WARNING_REQUIRES_OVERRIDE`.
+- Implemented tenant-scoped duplicate policy engine in `apps/api/src/vouchers/duplicate/policy.ts` with structured outcomes (`no_match`, `warning`, `refusal`).
+- Wired duplicate checks into issuance route for partner-token and active steward issuance paths, preserving initiate-only pending-request behavior.
+- Added deterministic boundary coverage and route-level duplicate coverage; updated existing issuance integration scenarios for non-duplicate fixtures under new policy.
+- Verified regression suite passes with duplicate-policy tests included in `test:admin` and `test:tenant`.
+- Added explicit warning response path for duplicate policy warnings (distinct from refusal), including machine-readable details and warning audit event type.
+- Added route-level warning-mode integration assertions for steward and partner-token issuance flows.
+- Reconciled story file list against git status to remove review discrepancies.
 
 ### File List
 
+- `apps/api/src/partner/routes.ts`
+- `apps/api/src/tenancy/refusal.ts`
+- `apps/api/src/vouchers/duplicate/index.ts`
+- `apps/api/src/vouchers/duplicate/policy.ts`
+- `package.json`
+- `packages/contracts/src/constants/refusal-reasons.ts`
+- `packages/contracts/src/constants/voucher-issuance.ts`
+- `packages/contracts/src/index.ts`
+- `tests/README.md`
+- `tests/integration/voucher-duplicate-policy-boundary.ts`
+- `tests/integration/voucher-duplicate-policy-window.ts`
+- `tests/integration/voucher-issuance.ts`
+- `tests/tenant-isolation/README.md`
+- `tests/tenant-isolation/voucher-duplicate-policy-window.ts`
 - `_bmad-output/implementation-artifacts/2-2-duplicate-detection-policy-window.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `_bmad-output/automation-summary.md`
 
+## Senior Developer Review (AI)
+
+- 2026-02-12: Resolved code-review findings by implementing a distinct warning response branch for duplicate policy warnings, adding warning-path integration coverage, and reconciling story/git file-list drift.
+- Verified compose-backed duplicate-policy test coverage for refusal, warning, boundary behavior, and tenant isolation.
+
+## Change Log
+
+- 2026-02-12: Implemented Story 2.2 duplicate policy engine, refusal reason codes, issuance-path integration, and regression-tested admin/tenant suites with new duplicate-policy coverage.
+- 2026-02-12: Review remediation applied for warning-path behavior, warning-mode tests, and story/git discrepancy cleanup.

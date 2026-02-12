@@ -259,7 +259,12 @@ async function run() {
         host,
         [PARTNER_TOKEN_HEADER]: partnerToken,
       },
-      payload: createIssuePayload({ voucher_type: "clothing" }),
+      payload: createIssuePayload({
+        voucher_type: "clothing",
+        first_name: "Pat",
+        last_name: "Partner",
+        date_of_birth: "1984-06-20",
+      }),
     });
     assert.equal(partnerIssueResponse.statusCode, 200);
     const partnerIssueBody = parseJson<{
@@ -306,7 +311,12 @@ async function run() {
       url: "/v1/vouchers",
       headers: { host },
       payload: {
-        ...createIssuePayload({ voucher_type: "clothing" }),
+        ...createIssuePayload({
+          voucher_type: "clothing",
+          first_name: "Blake",
+          last_name: "Override",
+          date_of_birth: "1981-02-11",
+        }),
         tenant_id: "",
       },
     });

@@ -54,7 +54,7 @@ development_status:
 
   epic-2: in-progress
   2-1-issue-voucher-allowed-types-identity-minimums: done
-  2-2-duplicate-detection-policy-window: ready-for-dev
+  2-2-duplicate-detection-policy-window: done
   2-3-authorized-override-with-reason-audit: ready-for-dev
   2-4-voucher-lookup-status-and-void-tenant-scoped: ready-for-dev
   epic-2-retrospective: optional

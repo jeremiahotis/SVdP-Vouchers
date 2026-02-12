@@ -4,6 +4,29 @@ export const VOUCHER_ISSUANCE_LIMITS = {
   maxHouseholdCount: 20,
 } as const;
 
+export const VOUCHER_DUPLICATE_POLICY_LIMITS = {
+  defaultWindowDays: 90,
+  minWindowDays: 1,
+  maxWindowDays: 3650,
+} as const;
+
+export const VOUCHER_DUPLICATE_POLICY_ACTIONS = {
+  refusal: "refusal",
+  warning: "warning",
+} as const;
+
+export type VoucherDuplicatePolicyAction =
+  (typeof VOUCHER_DUPLICATE_POLICY_ACTIONS)[keyof typeof VOUCHER_DUPLICATE_POLICY_ACTIONS];
+
+export type VoucherDuplicatePolicyOutcome = "no_match" | "warning" | "refusal";
+
+export type VoucherIdentityKey = {
+  voucher_type: string;
+  first_name: string;
+  last_name: string;
+  date_of_birth: string;
+};
+
 export const DEFAULT_TENANT_ALLOWED_VOUCHER_TYPES = [
   "clothing",
   "furniture",
@@ -102,6 +125,10 @@ function normalizeVoucherType(value: string): string {
   return normalizeText(value, VOUCHER_ISSUANCE_LIMITS.maxVoucherTypeLength).toLowerCase();
 }
 
+function normalizeDateOfBirth(value: string): string {
+  return value.trim();
+}
+
 function normalizeHouseholdValue(value: number): number {
   if (!Number.isFinite(value)) {
     return 0;
@@ -146,7 +173,8 @@ export function normalizeVoucherIssuancePayload(input: unknown): VoucherIssuance
       typeof input.last_name === "string"
         ? normalizeText(input.last_name, VOUCHER_ISSUANCE_LIMITS.maxNameLength)
         : "",
-    date_of_birth: typeof input.date_of_birth === "string" ? input.date_of_birth.trim() : "",
+    date_of_birth:
+      typeof input.date_of_birth === "string" ? normalizeDateOfBirth(input.date_of_birth) : "",
     household_adults:
       typeof input.household_adults === "number"
         ? normalizeHouseholdValue(input.household_adults)
@@ -278,4 +306,28 @@ export function validateVoucherIssuancePayload(input: unknown): VoucherIssuanceV
   }
 
   return { ok: true, value: normalized };
+}
+
+export function normalizeVoucherIdentityKey(input: Pick<
+  VoucherIssuancePayload,
+  "voucher_type" | "first_name" | "last_name" | "date_of_birth"
+>): VoucherIdentityKey {
+  return {
+    voucher_type: normalizeVoucherType(input.voucher_type),
+    first_name: normalizeText(input.first_name, VOUCHER_ISSUANCE_LIMITS.maxNameLength).toLowerCase(),
+    last_name: normalizeText(input.last_name, VOUCHER_ISSUANCE_LIMITS.maxNameLength).toLowerCase(),
+    date_of_birth: normalizeDateOfBirth(input.date_of_birth),
+  };
+}
+
+export function resolveVoucherDuplicatePolicyWindowDays(input: unknown): number {
+  if (typeof input !== "number" || !Number.isFinite(input)) {
+    return VOUCHER_DUPLICATE_POLICY_LIMITS.defaultWindowDays;
+  }
+
+  const rounded = Math.floor(input);
+  return Math.max(
+    VOUCHER_DUPLICATE_POLICY_LIMITS.minWindowDays,
+    Math.min(VOUCHER_DUPLICATE_POLICY_LIMITS.maxWindowDays, rounded),
+  );
 }

@@ -17,9 +17,9 @@
     "seed:platform": "tsx tools/seed-platform.ts",
     "api:openapi": "pnpm -C apps/api openapi:generate",
     "test:e2e": "playwright test",
-    "test:tenant": "node -e \"console.log('TEST_IMAGE_SHA=',process.env.GIT_SHA||'unknown')\" && tsx tests/tenant-isolation/tenant-resolution.ts && tsx tests/tenant-isolation/host-based-tenant-refusal.ts",
+    "test:tenant": "node -e \"console.log('TEST_IMAGE_SHA=',process.env.GIT_SHA||'unknown')\" && tsx tests/tenant-isolation/tenant-resolution.ts && tsx tests/tenant-isolation/host-based-tenant-refusal.ts && tsx tests/tenant-isolation/voucher-duplicate-policy-window.ts",
     "test:idempotency": "node -e \"console.log('TEST_IMAGE_SHA=',process.env.GIT_SHA||'unknown')\" && tsx tests/integration/idempotency.ts",
-    "test:admin": "node -e \"console.log('TEST_IMAGE_SHA=',process.env.GIT_SHA||'unknown')\" && tsx tests/integration/admin-auth.ts && tsx tests/integration/admin-guards.ts && tsx tests/integration/admin-ip-allowlist.ts && tsx tests/integration/openapi-admin-routes.ts && tsx tests/integration/correlation-telemetry.ts && tsx tests/integration/audit-write-path.ts && tsx tests/integration/partner-token-auth.ts && tsx tests/integration/partner-token-schema.ts && tsx tests/integration/partner-form-config.ts && tsx tests/integration/voucher-issuance.ts && tsx tests/integration/partner-embed-form-render.ts",
+    "test:admin": "node -e \"console.log('TEST_IMAGE_SHA=',process.env.GIT_SHA||'unknown')\" && tsx tests/integration/admin-auth.ts && tsx tests/integration/admin-guards.ts && tsx tests/integration/admin-ip-allowlist.ts && tsx tests/integration/openapi-admin-routes.ts && tsx tests/integration/correlation-telemetry.ts && tsx tests/integration/audit-write-path.ts && tsx tests/integration/partner-token-auth.ts && tsx tests/integration/partner-token-schema.ts && tsx tests/integration/partner-form-config.ts && tsx tests/integration/voucher-issuance.ts && tsx tests/integration/voucher-duplicate-policy-boundary.ts && tsx tests/integration/voucher-duplicate-policy-window.ts && tsx tests/integration/partner-embed-form-render.ts",
     "test:release-gates": "tsx tests/integration/operational-gates.ts",
     "test:db": "pnpm test:admin && pnpm test:tenant && pnpm test:idempotency && pnpm test:release-gates"
   },

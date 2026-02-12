@@ -22,6 +22,7 @@ import {
   isVoucherTypeAllowed as isTenantVoucherTypeAllowed,
   resolveAuthIssuanceMode,
 } from "../vouchers/issuance.js";
+import { evaluateDuplicatePolicy } from "../vouchers/duplicate/policy.js";
 
 const voucherIssueBodySchema = voucherIssuanceBodyJsonSchema;
 
@@ -63,6 +64,35 @@ function refusalReply(reply: FastifyReply, reason: string, correlationId: string
     .code(200)
     .header("content-type", "application/json")
     .send(refusal(reason, correlationId));
+}
+
+function duplicatePolicyReply(
+  reply: FastifyReply,
+  params: {
+    outcome: "warning" | "refusal";
+    reason: string;
+    matchedVoucherId: string;
+    policyWindowDays: number;
+    correlationId: string;
+  },
+) {
+  if (params.outcome === "warning") {
+    return reply.code(200).header("content-type", "application/json").send(
+      JSON.stringify({
+        success: false,
+        reason: params.reason,
+        details: {
+          duplicate_outcome: "warning",
+          override_eligible: true,
+          matched_voucher_id: params.matchedVoucherId,
+          duplicate_window_days: params.policyWindowDays,
+        },
+        correlation_id: params.correlationId,
+      }),
+    );
+  }
+
+  return refusalReply(reply, params.reason, params.correlationId);
 }
 
 function badRequest(reply: FastifyReply, request: FastifyRequest, message: string) {
@@ -338,6 +368,41 @@ export function registerPartnerRoutes(app: FastifyInstance) {
       }
 
       if (request.partnerContext) {
+        const duplicatePolicy = await evaluateDuplicatePolicy({
+          db: request.db,
+          tenantId,
+          voucherType,
+          payload: validatedPayload.value,
+        });
+        if (duplicatePolicy.outcome !== "no_match") {
+          await writeAuditEvent({
+            tenantId,
+            actorId: "partner_token",
+            eventType:
+              duplicatePolicy.outcome === "warning"
+                ? "partner.issuance.warning"
+                : "partner.issuance.refused",
+            reason: duplicatePolicy.reason,
+            metadata: {
+              voucher_type: voucherType,
+              reason_source: "duplicate_policy_window",
+              duplicate_outcome: duplicatePolicy.outcome,
+              duplicate_window_days: duplicatePolicy.policy_window_days,
+              matched_voucher_id: duplicatePolicy.matched_voucher_id,
+            },
+            partnerAgencyId: request.partnerContext.partnerAgencyId,
+            correlationId: request.id,
+            dbOverride: request.db,
+          });
+          return duplicatePolicyReply(reply, {
+            outcome: duplicatePolicy.outcome,
+            reason: duplicatePolicy.reason,
+            matchedVoucherId: duplicatePolicy.matched_voucher_id,
+            policyWindowDays: duplicatePolicy.policy_window_days,
+            correlationId: request.id,
+          });
+        }
+
         const issuance = await issueVoucherForPartnerToken({
           db: request.db,
           tenantId,
@@ -417,6 +482,40 @@ export function registerPartnerRoutes(app: FastifyInstance) {
               correlation_id: request.id,
             }),
           );
+      }
+
+      const duplicatePolicy = await evaluateDuplicatePolicy({
+        db: request.db,
+        tenantId,
+        voucherType,
+        payload: validatedPayload.value,
+      });
+      if (duplicatePolicy.outcome !== "no_match") {
+        await writeAuditEvent({
+          tenantId,
+          actorId: request.authContext.actorId,
+          eventType:
+            duplicatePolicy.outcome === "warning"
+              ? "voucher.issuance.warning"
+              : "voucher.issuance.refused",
+          reason: duplicatePolicy.reason,
+          metadata: {
+            voucher_type: voucherType,
+            reason_source: "duplicate_policy_window",
+            duplicate_outcome: duplicatePolicy.outcome,
+            duplicate_window_days: duplicatePolicy.policy_window_days,
+            matched_voucher_id: duplicatePolicy.matched_voucher_id,
+          },
+          correlationId: request.id,
+          dbOverride: request.db,
+        });
+        return duplicatePolicyReply(reply, {
+          outcome: duplicatePolicy.outcome,
+          reason: duplicatePolicy.reason,
+          matchedVoucherId: duplicatePolicy.matched_voucher_id,
+          policyWindowDays: duplicatePolicy.policy_window_days,
+          correlationId: request.id,
+        });
       }
 
       const issued = await createIssuedVoucher({
