@@ -1,0 +1,24 @@
+name: PR Base Guard
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, edited]
+
+jobs:
+  enforce-story-pr-base:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Block codex/story PRs targeting main
+        shell: bash
+        run: |
+          set -euo pipefail
+          HEAD_REF="${{ github.head_ref }}"
+          BASE_REF="${{ github.base_ref }}"
+
+          if [[ "${HEAD_REF}" == codex/story-* && "${BASE_REF}" == "main" ]]; then
+            echo "Story branches must not target main."
+            echo "Use base: feature/shyft-standalone-voucher-platform"
+            exit 1
+          fi
+
+          echo "PR base guard passed for ${HEAD_REF} -> ${BASE_REF}"
