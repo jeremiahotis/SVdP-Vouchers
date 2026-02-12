@@ -1,0 +1,34 @@
+{
+  "name": "voucher-shyft",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "pnpm -C apps/api dev",
+    "dev:web": "pnpm -C apps/web dev",
+    "build": "pnpm -C apps/api build && pnpm -C apps/web build",
+    "seed:platform": "tsx tools/seed-platform.ts",
+    "api:openapi": "pnpm -C apps/api openapi:generate",
+    "test:e2e": "playwright test",
+    "test:tenant": "node -e \"console.log('TEST_IMAGE_SHA=',process.env.GIT_SHA||'unknown')\" && tsx tests/tenant-isolation/tenant-resolution.ts && tsx tests/tenant-isolation/host-based-tenant-refusal.ts",
+    "test:idempotency": "node -e \"console.log('TEST_IMAGE_SHA=',process.env.GIT_SHA||'unknown')\" && tsx tests/integration/idempotency.ts",
+    "test:admin": "node -e \"console.log('TEST_IMAGE_SHA=',process.env.GIT_SHA||'unknown')\" && tsx tests/integration/admin-auth.ts && tsx tests/integration/admin-guards.ts && tsx tests/integration/admin-ip-allowlist.ts && tsx tests/integration/openapi-admin-routes.ts && tsx tests/integration/correlation-telemetry.ts && tsx tests/integration/audit-write-path.ts && tsx tests/integration/partner-token-auth.ts && tsx tests/integration/partner-token-schema.ts && tsx tests/integration/partner-form-config.ts && tsx tests/integration/voucher-issuance.ts && tsx tests/integration/partner-embed-form-render.ts",
+    "test:release-gates": "tsx tests/integration/operational-gates.ts",
+    "test:db": "pnpm test:admin && pnpm test:tenant && pnpm test:idempotency && pnpm test:release-gates"
+  },
+  "devDependencies": {
+    "@faker-js/faker": "^9.6.0",
+    "@playwright/test": "^1.51.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.8.0",
+    "knex": "^3.1.0",
+    "pg": "^8.11.0"
+  }
+}

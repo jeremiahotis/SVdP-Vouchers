@@ -2,13 +2,15 @@
 /**
  * Admin functionality
  */
-class SVDP_Admin {
-    
-    public function __construct() {
+class SVDP_Admin
+{
+
+    public function __construct()
+    {
         add_action('admin_menu', [$this, 'add_admin_menu']);
         add_action('admin_init', [$this, 'register_settings']);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_admin_assets']);
-        
+
         // AJAX handlers
         add_action('wp_ajax_svdp_add_conference', [$this, 'ajax_add_conference']);
         add_action('wp_ajax_svdp_delete_conference', [$this, 'ajax_delete_conference']);
@@ -27,19 +29,31 @@ class SVDP_Admin {
 
         // Reason AJAX
         add_action('wp_ajax_svdp_add_reason', [$this, 'ajax_add_reason']);
-        add_action('wp_ajax_svdp_get_reasons', [$this, 'ajax_get_reasons']);
+        add_action('wp_ajax_svdp_get_override_reasons', [$this, 'handle_get_override_reasons']);
+        add_action('wp_ajax_svdp_save_override_reasons', [$this, 'handle_save_override_reasons']);
         add_action('wp_ajax_svdp_update_reason', [$this, 'ajax_update_reason']);
         add_action('wp_ajax_svdp_delete_reason', [$this, 'ajax_delete_reason']);
-        add_action('wp_ajax_svdp_reorder_reasons', [$this, 'ajax_reorder_reasons']);
+        add_action('wp_ajax_svdp_import_csv', 'handle_csv_import'); // Global function in main file
+        add_action('wp_ajax_svdp_get_reconciliation_detail', [$this, 'handle_get_reconciliation_detail']);
+        add_action('wp_ajax_svdp_get_unmatched_receipts', [$this, 'handle_get_unmatched_receipts']);
+        add_action('wp_ajax_svdp_get_report_data', [$this, 'handle_get_report_data']);
 
         // Export handler
         add_action('admin_post_svdp_export_vouchers', [$this, 'export_vouchers']);
+        add_action('admin_post_svdp_export_unmatched', [$this, 'export_unmatched_receipts']);
+        add_action('admin_post_svdp_export_report', [$this, 'export_report_csv']);
+
+        // Catalog AJAX
+        add_action('wp_ajax_svdp_add_catalog_item', [$this, 'ajax_add_catalog_item']);
+        add_action('wp_ajax_svdp_update_catalog_item', [$this, 'ajax_update_catalog_item']);
+        add_action('wp_ajax_svdp_delete_catalog_item', [$this, 'ajax_delete_catalog_item']);
     }
-    
+
     /**
      * Add admin menu
      */
-    public function add_admin_menu() {
+    public function add_admin_menu()
+    {
         add_menu_page(
             __('SVdP Vouchers', 'svdp-vouchers'),
             __('SVdP Vouchers', 'svdp-vouchers'),
@@ -50,45 +64,58 @@ class SVDP_Admin {
             30
         );
     }
-    
+
     /**
      * Register settings
      */
-    public function register_settings() {
+    public function register_settings()
+    {
         // Settings are now managed via SVDP_Settings class and database table
     }
-    
+
     /**
      * Enqueue admin assets
      */
-    public function enqueue_admin_assets($hook) {
+    public function enqueue_admin_assets($hook)
+    {
         if ($hook !== 'toplevel_page_svdp-vouchers') {
             return;
         }
 
-        wp_enqueue_style('svdp-vouchers-admin', SVDP_VOUCHERS_PLUGIN_URL . 'admin/css/admin.css', [], SVDP_VOUCHERS_VERSION);
+        // Enqueue Design System Tokens (Global)
+        wp_enqueue_style('shyft-variables', SVDP_VOUCHERS_PLUGIN_URL . 'public/css/shyft-variables.css', [], SVDP_VOUCHERS_VERSION);
+
+        // Print Receipt Assets
+        wp_enqueue_style('svdp-print-receipt', SVDP_VOUCHERS_PLUGIN_URL . 'public/css/svdp-print-receipt.css', [], SVDP_VOUCHERS_VERSION);
+        wp_enqueue_script('svdp-print-receipt', SVDP_VOUCHERS_PLUGIN_URL . 'public/js/svdp-print-receipt.js', ['jquery'], SVDP_VOUCHERS_VERSION, true);
+
+        wp_enqueue_style('svdp-vouchers-admin', SVDP_VOUCHERS_PLUGIN_URL . 'admin/css/admin.css', ['shyft-variables'], SVDP_VOUCHERS_VERSION);
         wp_enqueue_script('svdp-vouchers-admin', SVDP_VOUCHERS_PLUGIN_URL . 'admin/js/admin.js', ['jquery'], SVDP_VOUCHERS_VERSION, true);
         wp_enqueue_script('svdp-managers', SVDP_VOUCHERS_PLUGIN_URL . 'admin/js/managers.js', ['jquery'], SVDP_VOUCHERS_VERSION, true);
         wp_enqueue_script('svdp-override-reasons', SVDP_VOUCHERS_PLUGIN_URL . 'admin/js/override-reasons.js', ['jquery', 'jquery-ui-sortable'], SVDP_VOUCHERS_VERSION, true);
+        wp_enqueue_script('svdp-imports', SVDP_VOUCHERS_PLUGIN_URL . 'admin/js/imports.js', ['jquery'], SVDP_VOUCHERS_VERSION, true);
+        wp_enqueue_script('svdp-reconciliation', SVDP_VOUCHERS_PLUGIN_URL . 'admin/js/reconciliation.js', ['jquery'], SVDP_VOUCHERS_VERSION, true);
 
         wp_localize_script('svdp-vouchers-admin', 'svdpAdmin', [
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('svdp_admin_nonce'),
         ]);
     }
-    
+
     /**
      * Render admin page
      */
-    public function render_admin_page() {
+    public function render_admin_page()
+    {
         $active_tab = isset($_GET['tab']) ? $_GET['tab'] : 'conferences';
         include SVDP_VOUCHERS_PLUGIN_DIR . 'admin/views/admin-page.php';
     }
-    
+
     /**
      * AJAX: Add conference
      */
-    public function ajax_add_conference() {
+    public function ajax_add_conference()
+    {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -100,12 +127,14 @@ class SVDP_Admin {
         $org_type = sanitize_text_field($_POST['organization_type'] ?? 'conference');
         $eligibility_days = intval($_POST['eligibility_days'] ?? 90);
         $regular_items = intval($_POST['regular_items'] ?? 7);
+        $woodshop_paused = intval($_POST['woodshop_paused'] ?? 0);
+        $enable_printable_voucher = intval($_POST['enable_printable_voucher'] ?? 0);
 
         if (empty($name)) {
             wp_send_json_error('Organization name is required');
         }
 
-        $id = SVDP_Conference::create($name, $slug, 0, $org_type, $eligibility_days, $regular_items);
+        $id = SVDP_Conference::create($name, $slug, 0, $org_type, $eligibility_days, $regular_items, $woodshop_paused, $enable_printable_voucher);
 
         if ($id) {
             wp_send_json_success([
@@ -116,36 +145,38 @@ class SVDP_Admin {
             wp_send_json_error('Failed to add conference');
         }
     }
-    
+
     /**
      * AJAX: Delete conference
      */
-    public function ajax_delete_conference() {
+    public function ajax_delete_conference()
+    {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
-        
+
         if (!current_user_can('manage_options')) {
             wp_send_json_error('Permission denied');
         }
-        
+
         $id = intval($_POST['id']);
-        
+
         if (SVDP_Conference::delete($id)) {
             wp_send_json_success('Conference deleted successfully');
         } else {
             wp_send_json_error('Failed to delete conference');
         }
     }
-    
+
     /**
      * AJAX: Update conference
      */
-    public function ajax_update_conference() {
+    public function ajax_update_conference()
+    {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
-        
+
         if (!current_user_can('manage_options')) {
             wp_send_json_error('Permission denied');
         }
-        
+
         $id = intval($_POST['id']);
         $data = [
             'name' => sanitize_text_field($_POST['name']),
@@ -153,9 +184,13 @@ class SVDP_Admin {
             'notification_email' => sanitize_email($_POST['notification_email']),
             'eligibility_days' => intval($_POST['eligibility_days']),
             'items_per_person' => intval($_POST['items_per_person']),
+            'active' => isset($_POST['active']) ? intval($_POST['active']) : 1,
+            'woodshop_paused' => isset($_POST['woodshop_paused']) ? intval($_POST['woodshop_paused']) : 0,
+            'enable_printable_voucher' => isset($_POST['enable_printable_voucher']) ? intval($_POST['enable_printable_voucher']) : 0,
         ];
-        
-        if (SVDP_Conference::update($id, $data)) {
+
+        $result = SVDP_Conference::update($id, $data);
+        if ($result !== false) {
             wp_send_json_success('Conference updated successfully');
         } else {
             wp_send_json_error('Failed to update conference');
@@ -165,7 +200,8 @@ class SVDP_Admin {
     /**
      * Save plugin settings
      */
-    public function ajax_save_settings() {
+    public function ajax_save_settings()
+    {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -199,7 +235,8 @@ class SVDP_Admin {
     /**
      * AJAX: Update organization voucher types
      */
-    public function ajax_update_voucher_types() {
+    public function ajax_update_voucher_types()
+    {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -207,9 +244,23 @@ class SVDP_Admin {
         }
 
         $id = intval($_POST['id']);
-        $voucher_types = $_POST['voucher_types']; // Already JSON string
+        $voucher_types_raw = wp_unslash($_POST['voucher_types'] ?? '[]');
+        $decoded = json_decode($voucher_types_raw, true);
+        if (!is_array($decoded)) {
+            wp_send_json_error('Invalid voucher types payload');
+        }
 
-        if (SVDP_Conference::update($id, ['allowed_voucher_types' => $voucher_types])) {
+        $sanitized = [];
+        foreach ($decoded as $type) {
+            $type = sanitize_key($type);
+            if (!empty($type)) {
+                $sanitized[] = $type;
+            }
+        }
+        $voucher_types = wp_json_encode(array_values($sanitized));
+
+        $result = SVDP_Conference::update($id, ['allowed_voucher_types' => $voucher_types]);
+        if ($result !== false) {
             wp_send_json_success('Voucher types updated successfully');
         } else {
             wp_send_json_error('Failed to update voucher types');
@@ -219,7 +270,8 @@ class SVDP_Admin {
     /**
      * AJAX: Get organization custom text
      */
-    public function ajax_get_custom_text() {
+    public function ajax_get_custom_text()
+    {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -242,7 +294,8 @@ class SVDP_Admin {
     /**
      * AJAX: Save organization custom text
      */
-    public function ajax_save_custom_text() {
+    public function ajax_save_custom_text()
+    {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -265,7 +318,8 @@ class SVDP_Admin {
     /**
      * AJAX: Apply analytics filters and return filtered data
      */
-    public function ajax_apply_analytics_filters() {
+    public function ajax_apply_analytics_filters()
+    {
         check_ajax_referer('svdp_analytics_filters', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -368,17 +422,18 @@ class SVDP_Admin {
     /**
      * Export vouchers to CSV
      */
-    public function export_vouchers() {
+    public function export_vouchers()
+    {
         check_admin_referer('svdp_export', 'svdp_export_nonce');
-        
+
         if (!current_user_can('manage_options')) {
             wp_die('Permission denied');
         }
-        
+
         global $wpdb;
         $vouchers_table = $wpdb->prefix . 'svdp_vouchers';
         $conferences_table = $wpdb->prefix . 'svdp_conferences';
-        
+
         // Build filters from analytics filters (if set) or legacy date range
         $where_clauses = ['1=1'];
 
@@ -423,7 +478,7 @@ class SVDP_Admin {
         }
 
         $where_sql = implode(' AND ', $where_clauses);
-        
+
         // Get vouchers
         $vouchers = $wpdb->get_results("
             SELECT
@@ -461,17 +516,17 @@ class SVDP_Admin {
             WHERE {$where_sql}
             ORDER BY v.voucher_created_date DESC
         ");
-        
+
         // Set headers for CSV download
         header('Content-Type: text/csv; charset=utf-8');
         header('Content-Disposition: attachment; filename=svdp-vouchers-' . date('Y-m-d') . '.csv');
-        
+
         // Create output stream
         $output = fopen('php://output', 'w');
-        
+
         // Add BOM for Excel UTF-8 support
-        fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
-        
+        fprintf($output, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
         // Add headers
         fputcsv($output, [
             'ID',
@@ -502,7 +557,7 @@ class SVDP_Admin {
             'Override Reason',
             'Created At'
         ]);
-        
+
         // Add data
         foreach ($vouchers as $voucher) {
             fputcsv($output, [
@@ -535,7 +590,7 @@ class SVDP_Admin {
                 $voucher->created_at
             ]);
         }
-        
+
         fclose($output);
         exit;
     }
@@ -543,7 +598,8 @@ class SVDP_Admin {
     /**
      * AJAX: Add manager
      */
-    public function ajax_add_manager() {
+    public function ajax_add_manager()
+    {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -568,7 +624,8 @@ class SVDP_Admin {
     /**
      * AJAX: Get all managers
      */
-    public function ajax_get_managers() {
+    public function ajax_get_managers()
+    {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -582,7 +639,8 @@ class SVDP_Admin {
     /**
      * AJAX: Deactivate manager
      */
-    public function ajax_deactivate_manager() {
+    public function ajax_deactivate_manager()
+    {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -602,7 +660,8 @@ class SVDP_Admin {
     /**
      * AJAX: Regenerate manager code
      */
-    public function ajax_regenerate_code() {
+    public function ajax_regenerate_code()
+    {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -622,7 +681,8 @@ class SVDP_Admin {
     /**
      * AJAX: Add override reason
      */
-    public function ajax_add_reason() {
+    public function ajax_add_reason()
+    {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -645,9 +705,10 @@ class SVDP_Admin {
     }
 
     /**
-     * AJAX: Get all reasons
+     * AJAX: Get all override reasons
      */
-    public function ajax_get_reasons() {
+    public function handle_get_override_reasons()
+    {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -659,31 +720,296 @@ class SVDP_Admin {
     }
 
     /**
-     * AJAX: Update reason
+     * AJAX: Save override reasons (including reordering)
      */
-    public function ajax_update_reason() {
+    public function handle_save_override_reasons()
+    {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
             wp_send_json_error('Permission denied');
         }
 
-        $id = intval($_POST['id']);
-        $reason_text = sanitize_text_field($_POST['reason_text']);
+        $reasons = isset($_POST['reasons']) ? $_POST['reasons'] : [];
+        if (!is_array($reasons)) {
+            wp_send_json_error(['message' => 'Invalid data format']);
+        }
 
-        $result = SVDP_Override_Reason::update($id, $reason_text);
+        // Fix: Use reorder method instead of non-existent update_order
+        $result = SVDP_Override_Reason::reorder($reasons);
 
-        if ($result !== false) {
-            wp_send_json_success('Reason updated');
-        } else {
+        if (is_wp_error($result)) {
+            wp_send_json_error(['message' => $result->get_error_message()]);
+        }
+
+        wp_send_json_success(['message' => 'Reasons updated successfully']);
+    }
+
+    /**
+     * AJAX: Update override reason text
+     */
+    public function ajax_update_reason()
+    {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Permission denied');
+        }
+
+        $id = isset($_POST['id']) ? intval($_POST['id']) : 0;
+        $text = isset($_POST['reason_text']) ? sanitize_text_field($_POST['reason_text']) : '';
+
+        if (!$id || !$text) {
+            wp_send_json_error('Missing required fields');
+        }
+
+        $result = SVDP_Override_Reason::update($id, $text);
+
+        if ($result === false) {
             wp_send_json_error('Failed to update reason');
         }
+
+        wp_send_json_success(['message' => 'Reason updated']);
     }
 
     /**
-     * AJAX: Delete reason
+     * AJAX: Delete override reason
      */
-    public function ajax_delete_reason() {
+    public function ajax_delete_reason()
+    {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Permission denied');
+        }
+
+        $id = isset($_POST['id']) ? intval($_POST['id']) : 0;
+
+        if (!$id) {
+            wp_send_json_error('Invalid ID');
+        }
+
+        $result = SVDP_Override_Reason::delete($id);
+
+        if ($result === false) {
+            wp_send_json_error('Failed to delete reason');
+        }
+
+        wp_send_json_success(['message' => 'Reason deleted']);
+    }
+
+    /**
+     * AJAX: Get Reconciliation Detail
+     */
+    public function handle_get_reconciliation_detail()
+    {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        $voucher_id = isset($_POST['voucher_id']) ? intval($_POST['voucher_id']) : 0;
+        if (!$voucher_id) {
+            wp_send_json_error(['message' => 'Missing Voucher ID']);
+        }
+
+        $data = SVDP_Reconciliation::get_comparison($voucher_id);
+
+        if (is_wp_error($data)) {
+            wp_send_json_error(['message' => $data->get_error_message()]);
+        }
+
+        wp_send_json_success($data);
+    }
+
+    /**
+     * AJAX: Get Unmatched Receipts
+     */
+    public function handle_get_unmatched_receipts()
+    {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        $args = [
+            'store_id' => isset($_POST['store_id']) ? intval($_POST['store_id']) : '',
+            'date_start' => isset($_POST['date_start']) ? sanitize_text_field($_POST['date_start']) : '',
+            'date_end' => isset($_POST['date_end']) ? sanitize_text_field($_POST['date_end']) : '',
+            'search' => isset($_POST['search']) ? sanitize_text_field($_POST['search']) : '',
+            'limit' => 50 // Fixed limit for now
+        ];
+
+        $data = SVDP_Reconciliation::get_unmatched_receipts($args);
+
+        wp_send_json_success($data); // get_unmatched_receipts returns array, safe for direct pass
+    }
+
+    /**
+     * AJAX: Get Report Data
+     */
+    public function handle_get_report_data()
+    {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        $args = [
+            'conference_id' => isset($_POST['conference_id']) ? intval($_POST['conference_id']) : '',
+            'date_start' => isset($_POST['date_start']) ? sanitize_text_field($_POST['date_start']) : '',
+            'date_end' => isset($_POST['date_end']) ? sanitize_text_field($_POST['date_end']) : ''
+        ];
+
+        $data = SVDP_Reconciliation::get_report_data($args);
+
+        wp_send_json_success($data);
+    }
+
+    /**
+     * Export Report CSV
+     */
+    public function export_report_csv()
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+
+        header('Content-Type: text/csv');
+        header('Content-Disposition: attachment; filename="svdp-report-' . date('Y-m-d') . '.csv"');
+
+        $output = fopen('php://output', 'w');
+
+        // Fetch Data
+        $args = [
+            'conference_id' => isset($_POST['conference_id']) ? intval($_POST['conference_id']) : '',
+            'date_start' => isset($_POST['date_start']) ? sanitize_text_field($_POST['date_start']) : '',
+            'date_end' => isset($_POST['date_end']) ? sanitize_text_field($_POST['date_end']) : ''
+        ];
+
+        // Check for args in GET if POST is empty (direct link usually GET, but filtered export might be POST from form?)
+        // Standard admin-post usually POST.
+        if (empty($args['date_start']) && isset($_GET['date_start'])) {
+            $args['date_start'] = sanitize_text_field($_GET['date_start']);
+            $args['date_end'] = sanitize_text_field($_GET['date_end']);
+            $args['conference_id'] = isset($_GET['conference_id']) ? intval($_GET['conference_id']) : '';
+        }
+
+        $data = SVDP_Reconciliation::get_report_data($args);
+
+        // Header
+        fputcsv($output, [
+            'Report Key',
+            'Total Issued',
+            'Total Redeemed',
+            'Authorized Amount',
+            'Conference Share',
+            'Store Share'
+        ]);
+
+        foreach ($data['breakdown'] as $row) {
+            fputcsv($output, [
+                $row->report_key,
+                $row->total_issued,
+                $row->total_redeemed,
+                number_format($row->total_authorized_amount, 2),
+                number_format($row->total_conference_share, 2),
+                number_format($row->total_store_share, 2)
+            ]);
+        }
+
+        // Summary Row
+        fputcsv($output, []);
+        fputcsv($output, [
+            'TOTALS',
+            $data['totals']['issued'],
+            $data['totals']['redeemed'],
+            number_format($data['totals']['authorized'], 2),
+            number_format($data['totals']['conference_liability'], 2),
+            number_format($data['totals']['store_liability'], 2)
+        ]);
+
+        fclose($output);
+        exit;
+    }
+
+    /**
+     * Export Unmatched Receipts
+     */
+    public function export_unmatched_receipts()
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+
+        header('Content-Type: text/csv');
+        header('Content-Disposition: attachment; filename="svdp-unmatched-receipts-' . date('Y-m-d') . '.csv"');
+
+        $output = fopen('php://output', 'w');
+        fputcsv($output, ['Receipt ID', 'Store ID', 'Date', 'Gross Total', 'Line Items Count']);
+
+        // Fetch all unmatched (no limit)
+        $args = [
+            'limit' => 999999
+        ];
+        $data = SVDP_Reconciliation::get_unmatched_receipts($args);
+
+        foreach ($data['items'] as $item) {
+            fputcsv($output, [
+                $item->receipt_id,
+                $item->store_id,
+                $item->receipt_datetime,
+                $item->gross_total,
+                '-' // Placeholder for item count if needed
+            ]);
+        }
+
+        fclose($output);
+        exit;
+    }
+
+    /**
+     * AJAX: Add catalog item
+     */
+    public function ajax_add_catalog_item()
+    {
+        check_ajax_referer('svdp_admin_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Permission denied');
+        }
+
+        $voucher_type = sanitize_text_field($_POST['voucher_type']);
+        $category = sanitize_text_field($_POST['category']);
+        $name = sanitize_text_field($_POST['name']);
+        $min_price = floatval($_POST['min_price']);
+        $max_price = floatval($_POST['max_price']);
+        $is_woodshop = intval($_POST['is_woodshop'] ?? 0);
+        $availability = sanitize_key($_POST['availability_status'] ?? 'available');
+        $sort_order = intval($_POST['sort_order'] ?? 0);
+
+        if (empty($name) || empty($voucher_type) || empty($category)) {
+            wp_send_json_error('Required fields missing');
+        }
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'svdp_catalog_items';
+
+        $result = $wpdb->insert($table, [
+            'voucher_type' => $voucher_type,
+            'category' => $category,
+            'name' => $name,
+            'min_price' => $min_price,
+            'max_price' => $max_price,
+            'is_woodshop' => $is_woodshop,
+            'availability_status' => $availability,
+            'sort_order' => $sort_order,
+            'active' => 1
+        ]);
+
+        if ($result) {
+            wp_send_json_success('Item added successfully');
+        } else {
+            wp_send_json_error('Failed to add item');
+        }
+    }
+
+    /**
+     * AJAX: Update catalog item
+     */
+    public function ajax_update_catalog_item()
+    {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -691,37 +1017,50 @@ class SVDP_Admin {
         }
 
         $id = intval($_POST['id']);
-        $result = SVDP_Override_Reason::delete($id);
+        $data = [
+            'name' => sanitize_text_field($_POST['name']),
+            'category' => sanitize_text_field($_POST['category']),
+            'min_price' => floatval($_POST['min_price']),
+            'max_price' => floatval($_POST['max_price']),
+            'is_woodshop' => intval($_POST['is_woodshop']),
+            'availability_status' => sanitize_key($_POST['availability_status']),
+            'sort_order' => intval($_POST['sort_order']),
+            'active' => intval($_POST['active'])
+        ];
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'svdp_catalog_items';
+
+        $result = $wpdb->update($table, $data, ['id' => $id]);
 
         if ($result !== false) {
-            wp_send_json_success('Reason deleted');
+            wp_send_json_success('Item updated');
         } else {
-            wp_send_json_error('Failed to delete reason');
+            wp_send_json_error('Failed to update item');
         }
     }
 
     /**
-     * AJAX: Reorder reasons
+     * AJAX: Delete catalog item
      */
-    public function ajax_reorder_reasons() {
+    public function ajax_delete_catalog_item()
+    {
         check_ajax_referer('svdp_admin_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
             wp_send_json_error('Permission denied');
         }
 
-        $order = $_POST['order']; // Array of IDs in new order
+        $id = intval($_POST['id']);
+        global $wpdb;
+        $table = $wpdb->prefix . 'svdp_catalog_items';
 
-        if (!is_array($order)) {
-            wp_send_json_error('Invalid order data');
-        }
-
-        $result = SVDP_Override_Reason::reorder($order);
+        $result = $wpdb->delete($table, ['id' => $id]);
 
         if ($result) {
-            wp_send_json_success('Order updated');
+            wp_send_json_success('Item deleted');
         } else {
-            wp_send_json_error('Failed to update order');
+            wp_send_json_error('Failed to delete item');
         }
     }
 }

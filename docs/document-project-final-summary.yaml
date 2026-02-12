@@ -1,0 +1,3 @@
+verification_summary: "none run"
+open_risks: "Migration stubs (v0003–v0006) are not implemented; catalog tables referenced by code are not created in schema."
+next_checks: "Review docs/index.md and confirm accuracy against current plugin behavior."

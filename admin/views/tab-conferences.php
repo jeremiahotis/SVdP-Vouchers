@@ -1,7 +1,7 @@
 <div class="svdp-conferences-tab">
 
     <div class="svdp-card">
-        <h2>Add New Conference or Partner</h2>
+        <h2>Add New Organization</h2>
         <form id="svdp-add-conference-form">
             <table class="form-table">
                 <tr>
@@ -15,7 +15,31 @@
                             <input type="radio" name="organization_type" value="partner">
                             Partner
                         </label>
-                        <p class="description">Conferences are St. Vincent de Paul organizations. Partners are external organizations that will be billed.</p>
+                        <label style="margin-right: 20px;">
+                            <input type="radio" name="organization_type" value="store">
+                            Store
+                        </label>
+                        <p class="description">Conferences are St. Vincent de Paul organizations. Partners are external organizations that will be billed. Stores represent physical thrift locations.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th><label for="woodshop_paused">Woodshop Paused</label></th>
+                    <td>
+                        <label>
+                            <input type="checkbox" id="woodshop_paused" name="woodshop_paused" value="1">
+                            Pause woodshop items for this store
+                        </label>
+                        <p class="description">Applies only to store organizations.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th><label for="enable_printable_voucher">Printable Vouchers</label></th>
+                    <td>
+                        <label>
+                            <input type="checkbox" id="enable_printable_voucher" name="enable_printable_voucher" value="1">
+                            Enable printable vouchers
+                        </label>
+                        <p class="description">Allows generating a PDF receipt for the neighbor.</p>
                     </td>
                 </tr>
                 <tr>
@@ -57,7 +81,7 @@
     <div class="svdp-card">
         <h2>Existing Organizations</h2>
         <p class="description">
-            Manage conferences and partners. The <strong>Store</strong> cannot be deleted as it's used by the cashier station.
+            Manage conferences, partners, and stores. Stores can be edited but are not deletable from this screen.
         </p>
 
         <table class="wp-list-table widefat fixed striped" style="table-layout: auto;">
@@ -70,6 +94,9 @@
                     <th style="width: 8%;">Items/Person</th>
                     <th style="width: 12%;">Voucher Types</th>
                     <th style="width: 15%;">Notification Email</th>
+                    <th style="width: 8%;">Active</th>
+                    <th style="width: 10%;">Woodshop Paused</th>
+                    <th style="width: 8%;">Printable</th>
                     <th style="width: 20%;">Actions</th>
                 </tr>
             </thead>
@@ -101,7 +128,7 @@
                     if ($type === 'store') $type_label = 'Store (Internal)';
                     ?>
                     <tr class="group-header" style="background: #f0f0f1; font-weight: bold;">
-                        <td colspan="8" style="padding: 10px;">
+                        <td colspan="10" style="padding: 10px;">
                             <?php echo $type_label; ?>
                             <span style="font-weight: normal; color: #666;">(<?php echo count($grouped[$type]); ?>)</span>
                         </td>
@@ -112,6 +139,9 @@
                         $allowed_types = !empty($conference->allowed_voucher_types)
                             ? json_decode($conference->allowed_voucher_types, true)
                             : ['clothing'];
+                        if (!is_array($allowed_types)) {
+                            $allowed_types = [];
+                        }
                         $is_store = $conference->organization_type === 'store';
                 ?>
                 <tr data-id="<?php echo $conference->id; ?>"
@@ -163,17 +193,36 @@
                             Edit Types
                         </button>
                         <div style="font-size: 10px; color: #666; margin-top: 2px;">
-                            <?php echo implode(', ', array_map('ucfirst', $allowed_types)); ?>
+                            <?php echo !empty($allowed_types) ? implode(', ', array_map('ucfirst', $allowed_types)) : 'None'; ?>
                         </div>
                     </td>
-                    <td>
-                        <input type="email" class="notification-email"
-                               value="<?php echo esc_attr($conference->notification_email); ?>"
-                               data-id="<?php echo $conference->id; ?>"
-                               placeholder="email@example.com"
-                               style="width: 100%;">
-                    </td>
-                    <td>
+                        <td>
+                            <input type="email" class="notification-email"
+                                   value="<?php echo esc_attr($conference->notification_email); ?>"
+                                   data-id="<?php echo $conference->id; ?>"
+                                   placeholder="email@example.com"
+                                   style="width: 100%;">
+                        </td>
+                        <td style="text-align: center;">
+                            <input type="checkbox" class="organization-active"
+                                   data-id="<?php echo $conference->id; ?>"
+                                   <?php checked((int) $conference->active, 1); ?>>
+                        </td>
+                        <td style="text-align: center;">
+                            <?php if ($is_store): ?>
+                                <input type="checkbox" class="woodshop-paused"
+                                       data-id="<?php echo $conference->id; ?>"
+                                       <?php checked((int) $conference->woodshop_paused, 1); ?>>
+                            <?php else: ?>
+                                <span style="color: #999;">—</span>
+                            <?php endif; ?>
+                        </td>
+                        <td style="text-align: center;">
+                            <input type="checkbox" class="enable-printable-voucher"
+                                   data-id="<?php echo $conference->id; ?>"
+                                   <?php checked((int) ($conference->enable_printable_voucher ?? 0), 1); ?>>
+                        </td>
+                        <td>
                         <?php if (!$is_store): ?>
                             <button class="button button-small update-conference" data-id="<?php echo $conference->id; ?>">
                                 <span class="dashicons dashicons-saved" style="font-size: 14px; margin-top: 3px;"></span>
@@ -187,9 +236,12 @@
                                 <span class="dashicons dashicons-trash" style="font-size: 14px; margin-top: 3px;"></span>
                             </button>
                         <?php else: ?>
-                            <em style="color: #666;">System managed</em>
+                            <button class="button button-small update-conference" data-id="<?php echo $conference->id; ?>">
+                                <span class="dashicons dashicons-saved" style="font-size: 14px; margin-top: 3px;"></span>
+                                Update
+                            </button>
                         <?php endif; ?>
-                    </td>
+                        </td>
                 </tr>
                 <?php
                     endforeach;
@@ -207,7 +259,7 @@
             <li>Publish the page and share the URL with the organization</li>
         </ol>
         <p><strong>For the cashier station:</strong> Create a page and use the shortcode <code>[svdp_cashier_station]</code></p>
-        <p class="description">Only users with the "SVdP Cashier" role or administrators can access the cashier station.</p>
+        <p class="description">Users with the "SVdP Cashier" role can edit; "SVdP Cashier Viewer" and administrators can access read-only. To force read-only UI, use <code>[svdp_cashier_station read_only="1"]</code>.</p>
     </div>
 
 </div>
@@ -264,7 +316,14 @@ jQuery(document).ready(function($) {
     let currentEditId = null;
 
     // Load available voucher types from settings
-    const availableTypes = <?php echo json_encode(explode(',', SVDP_Settings::get_setting('available_voucher_types', 'clothing,furniture,household'))); ?>;
+    const availableTypes = <?php
+        $available_types = array_map('trim', explode(',', SVDP_Settings::get_setting('available_voucher_types', 'clothing,furniture,household')));
+        $available_types = array_filter($available_types, function($type) {
+            $type = sanitize_key($type);
+            return $type !== 'coat' && $type !== 'coats';
+        });
+        echo json_encode(array_values($available_types));
+    ?>;
 
     // Voucher Types Modal
     $('.edit-voucher-types').on('click', function() {
@@ -297,11 +356,6 @@ jQuery(document).ready(function($) {
         $('input[name="voucher_type"]:checked').each(function() {
             selected.push($(this).val());
         });
-
-        if (selected.length === 0) {
-            alert('Please select at least one voucher type.');
-            return;
-        }
 
         // Save via AJAX
         $.ajax({

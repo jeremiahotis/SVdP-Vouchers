@@ -1,0 +1,91 @@
+/**
+ * Shyft Design System Tokens (v1)
+ * Philosophy: Quiet Authority
+ * Governance: Defined in planning-artifacts/ui/shyft_ux_design_and_brand_system_source_of_truth_v_1.md
+ */
+
+:root {
+    /* -------------------------------------------------------------------------
+     * 1. Core Colors (Semantic & Authority)
+     * ------------------------------------------------------------------------- */
+    
+    /* Primary: Authority, Action, Trust Anchor */
+    --shyft-color-primary: #3F647E;
+    --shyft-color-primary-hover: #35576D;
+    --shyft-color-primary-active: #2C4A5D;
+
+    /* -------------------------------------------------------------------------
+     * 2. Backgrounds (Calm Field)
+     * ------------------------------------------------------------------------- */
+    
+    /* App Background (Default) - Warm off-white */
+    --shyft-color-bg-app: #F6F4F1;
+    
+    /* Surface / Card - Pure white */
+    --shyft-color-bg-card: #FFFFFF;
+    
+    /* Secondary / Context - Muted area */
+    --shyft-color-bg-surface: #EFE9E4;
+
+    /* -------------------------------------------------------------------------
+     * 3. Text (Legibility)
+     * ------------------------------------------------------------------------- */
+    
+    /* Primary Text - Soft Black */
+    --shyft-color-text-primary: #2B2B2B;
+    
+    /* Secondary Text - Labels, breakdown */
+    --shyft-color-text-secondary: #5F6A70;
+    
+    /* Muted Text - Timestamps, non-critical */
+    --shyft-color-text-muted: #8A949A;
+
+    /* -------------------------------------------------------------------------
+     * 4. Borders & Dividers
+     * ------------------------------------------------------------------------- */
+    
+    --shyft-color-border: #D6DAD8;
+    --shyft-color-divider: #E4E7E5;
+    --shyft-color-border-focus: #3F647E; /* Matches primary */
+
+    /* -------------------------------------------------------------------------
+     * 5. Status Colors (Desaturated)
+     * ------------------------------------------------------------------------- */
+    
+    --shyft-color-success: #6F8F7A;
+    --shyft-color-warning: #C6A86B;
+    --shyft-color-error: #9A5A5A;
+    --shyft-color-info: #7A8A94;
+
+    /* -------------------------------------------------------------------------
+     * 6. Interactive Neutrals & States
+     * ------------------------------------------------------------------------- */
+    
+    --shyft-color-secondary-bg: #E7ECEF;
+    --shyft-color-secondary-text: #3F647E;
+    
+    --shyft-color-disabled-bg: #E2E2E2;
+    --shyft-color-disabled-text: #9B9B9B;
+
+    /* -------------------------------------------------------------------------
+     * 7. Structural Tokens (Primitives)
+     * ------------------------------------------------------------------------- */
+
+    /* Spacing - 4px rhythm */
+    --shyft-spacing-1: 4px;
+    --shyft-spacing-2: 8px;
+    --shyft-spacing-3: 12px;
+    --shyft-spacing-4: 16px;
+    --shyft-spacing-5: 20px;
+    --shyft-spacing-6: 24px;
+    --shyft-spacing-8: 32px;
+    
+    /* Typography - Stack */
+    --shyft-font-family-serif: 'Georgia', 'Times New Roman', serif; /* Placeholder until a specific webfont is added */
+    --shyft-font-family-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+
+    /* Radius */
+    --shyft-radius-sm: 4px;
+    --shyft-radius-md: 8px;
+    --shyft-radius-lg: 12px;
+}

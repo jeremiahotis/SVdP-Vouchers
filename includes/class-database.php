@@ -2,17 +2,19 @@
 /**
  * Database setup and schema
  */
-class SVDP_Database {
-    
+class SVDP_Database
+{
+
     /**
      * Create database tables
      */
-    public static function create_tables() {
+    public static function create_tables()
+    {
         global $wpdb;
         $charset_collate = $wpdb->get_charset_collate();
-    
+
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-    
+
         // Vouchers table
         $vouchers_table = $wpdb->prefix . 'svdp_vouchers';
         $vouchers_sql = "CREATE TABLE $vouchers_table (
@@ -23,6 +25,7 @@ class SVDP_Database {
             adults int(11) NOT NULL DEFAULT 0,
             children int(11) NOT NULL DEFAULT 0,
             conference_id bigint(20) NOT NULL,
+            store_id bigint(20) DEFAULT NULL,
             vincentian_name varchar(200) DEFAULT NULL,
             vincentian_email varchar(200) DEFAULT NULL,
             created_by varchar(50) NOT NULL,
@@ -48,11 +51,12 @@ class SVDP_Database {
             KEY last_name (last_name),
             KEY dob (dob),
             KEY conference_id (conference_id),
+            KEY store_id (store_id),
             KEY status (status),
             KEY voucher_created_date (voucher_created_date),
             KEY coat_issued_date (coat_issued_date)
         ) $charset_collate;";
-        
+
         // Conferences table
         $conferences_table = $wpdb->prefix . 'svdp_conferences';
         $conferences_sql = "CREATE TABLE $conferences_table (
@@ -61,6 +65,8 @@ class SVDP_Database {
             slug varchar(200) NOT NULL,
             is_emergency tinyint(1) NOT NULL DEFAULT 0,
             organization_type varchar(50) DEFAULT 'conference',
+            woodshop_paused tinyint(1) DEFAULT 0,
+            enable_printable_voucher tinyint(1) DEFAULT 0,
             eligibility_days int(11) DEFAULT 90,
             emergency_affects_eligibility tinyint(1) DEFAULT 0,
             regular_items_per_person int(11) DEFAULT 7,
@@ -78,7 +84,7 @@ class SVDP_Database {
             KEY active (active),
             KEY organization_type (organization_type)
         ) $charset_collate;";
-        
+
         // Settings table
         $settings_table = $wpdb->prefix . 'svdp_settings';
         $settings_sql = "CREATE TABLE $settings_table (
@@ -105,20 +111,22 @@ class SVDP_Database {
         self::insert_default_conferences();
         self::insert_default_settings();
     }
-    
+
     /**
      * Insert default conferences
      */
-    private static function insert_default_conferences() {
+    private static function insert_default_conferences()
+    {
         global $wpdb;
         $table = $wpdb->prefix . 'svdp_conferences';
-        
+        $settings_table = $wpdb->prefix . 'svdp_settings';
+
         // Check if conferences already exist
         $count = $wpdb->get_var("SELECT COUNT(*) FROM $table");
         if ($count > 0) {
             return;
         }
-        
+
         $conferences = [
             ['name' => 'Emergency', 'slug' => 'emergency', 'is_emergency' => 1],
             ['name' => 'Cathedral of the Immaculate Conception', 'slug' => 'cathedral-immaculate-conception', 'is_emergency' => 0],
@@ -137,16 +145,52 @@ class SVDP_Database {
             ['name' => 'St Therese', 'slug' => 'st-therese', 'is_emergency' => 0],
             ['name' => 'St Vincent de Paul', 'slug' => 'st-vincent-de-paul', 'is_emergency' => 0],
         ];
-        
+
         foreach ($conferences as $conference) {
             $wpdb->insert($table, $conference);
+        }
+
+        // Ensure a default store exists for cashier context.
+        $store_count = (int) $wpdb->get_var("SELECT COUNT(*) FROM $table WHERE organization_type = 'store'");
+        if ($store_count === 0) {
+            $wpdb->insert($table, [
+                'name' => 'SVdP Thrift Store',
+                'slug' => 'svdp-thrift-store',
+                'is_emergency' => 0,
+                'organization_type' => 'store',
+                'woodshop_paused' => 0,
+                'eligibility_days' => 90,
+                'emergency_affects_eligibility' => 0,
+                'regular_items_per_person' => 7,
+                'emergency_items_per_person' => 3,
+                'form_enabled' => 0,
+                'active' => 1,
+                'allowed_voucher_types' => json_encode(['clothing']),
+            ]);
+        }
+
+        // Set default_store_id setting if missing.
+        $default_store_id = $wpdb->get_var("SELECT id FROM $table WHERE organization_type = 'store' ORDER BY id ASC LIMIT 1");
+        if (!empty($default_store_id)) {
+            $exists = (int) $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM $settings_table WHERE setting_key = %s",
+                'default_store_id'
+            ));
+            if ($exists === 0) {
+                $wpdb->insert($settings_table, [
+                    'setting_key' => 'default_store_id',
+                    'setting_value' => (string) $default_store_id,
+                    'setting_type' => 'text',
+                ]);
+            }
         }
     }
 
     /**
      * Insert default settings
      */
-    private static function insert_default_settings() {
+    private static function insert_default_settings()
+    {
         global $wpdb;
         $table = $wpdb->prefix . 'svdp_settings';
 
@@ -172,7 +216,8 @@ class SVDP_Database {
     /**
      * Migrate database to version 2 (add new columns for partner support & item-based model)
      */
-    public static function migrate_to_v2() {
+    public static function migrate_to_v2()
+    {
         global $wpdb;
 
         // Check if migration is needed
@@ -218,7 +263,8 @@ class SVDP_Database {
     /**
      * Create managers table for override system
      */
-    public static function create_managers_table() {
+    public static function create_managers_table()
+    {
         global $wpdb;
         $table = $wpdb->prefix . 'svdp_managers';
         $charset_collate = $wpdb->get_charset_collate();
@@ -240,7 +286,8 @@ class SVDP_Database {
     /**
      * Create override reasons table
      */
-    public static function create_override_reasons_table() {
+    public static function create_override_reasons_table()
+    {
         global $wpdb;
         $table = $wpdb->prefix . 'svdp_override_reasons';
         $charset_collate = $wpdb->get_charset_collate();
@@ -264,7 +311,8 @@ class SVDP_Database {
     /**
      * Insert default override reasons
      */
-    private static function insert_default_reasons() {
+    private static function insert_default_reasons()
+    {
         global $wpdb;
         $table = $wpdb->prefix . 'svdp_override_reasons';
 
@@ -294,7 +342,8 @@ class SVDP_Database {
     /**
      * Add manager_id and reason_id columns to vouchers table
      */
-    public static function add_override_columns() {
+    public static function add_override_columns()
+    {
         global $wpdb;
         $table = $wpdb->prefix . 'svdp_vouchers';
 
@@ -310,4 +359,94 @@ class SVDP_Database {
                 ADD KEY reason_id (reason_id)");
         }
     }
+
+
+    /**
+     * Run DB migrations on admin_init (safe, idempotent).
+     *
+     * Migrations live in /db/migrations and are executed in numeric order.
+     * Each migration file must return a callable (closure) that performs schema changes/backfills.
+     */
+    public static function maybe_run_migrations()
+    {
+        // Only run in wp-admin; avoid frontend cost and avoid running for anonymous visitors.
+        if (!is_admin()) {
+            return;
+        }
+
+        // Only users who can manage options should trigger migrations.
+        if (!current_user_can('manage_options')) {
+            return;
+        }
+
+        // Avoid running during AJAX/REST calls unless explicitly desired.
+        if (defined('DOING_AJAX') && DOING_AJAX) {
+            return;
+        }
+
+        self::run_migrations();
+    }
+
+    /**
+     * Execute pending migrations based on the stored schema version.
+     */
+    public static function run_migrations()
+    {
+        global $wpdb;
+
+        $migrations_dir = trailingslashit(SVDP_VOUCHERS_PLUGIN_DIR) . 'db/migrations';
+        if (!is_dir($migrations_dir)) {
+            return;
+        }
+
+        // Existing plugin shipped as "v2" before formal migrations; start at 2 unless explicitly set.
+        $current_version = (int) get_option('svdp_schema_version', 2);
+
+        $files = glob($migrations_dir . '/v[0-9][0-9][0-9][0-9]__*.php');
+        if (!$files) {
+            // Ensure option exists for future.
+            if (get_option('svdp_schema_version', null) === null) {
+                add_option('svdp_schema_version', $current_version, '', false);
+            }
+            return;
+        }
+
+        // Sort by numeric prefix (v####)
+        usort($files, function ($a, $b) {
+            $va = (int) preg_replace('/^v(\d{4}).*$/', '$1', basename($a));
+            $vb = (int) preg_replace('/^v(\d{4}).*$/', '$1', basename($b));
+            return $va <=> $vb;
+        });
+
+        foreach ($files as $file) {
+            $target_version = (int) preg_replace('/^v(\d{4}).*$/', '$1', basename($file));
+            if ($target_version <= $current_version) {
+                continue;
+            }
+
+            // Load migration callable
+            $callable = include $file;
+
+            if (!is_callable($callable)) {
+                // Fail closed: do not advance schema version.
+                error_log('SVdP Vouchers migration not callable: ' . basename($file));
+                return;
+            }
+
+            // Best-effort transaction. dbDelta may auto-commit; still useful for backfills.
+            $wpdb->query('START TRANSACTION');
+            try {
+                call_user_func($callable);
+                $wpdb->query('COMMIT');
+            } catch (Throwable $e) {
+                $wpdb->query('ROLLBACK');
+                error_log('SVdP Vouchers migration failed (' . basename($file) . '): ' . $e->getMessage());
+                return;
+            }
+
+            $current_version = $target_version;
+            update_option('svdp_schema_version', $current_version, false);
+        }
+    }
+
 }
