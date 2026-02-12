@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
   partnerFormConfigJsonSchema,
   voucherIssuanceBodyJsonSchema,
+  voucherIssuanceResponseDataJsonSchema,
   validatePartnerFormConfigPayload,
   validateVoucherIssuancePayload,
 } from "@voucher-shyft/contracts";
@@ -23,30 +24,6 @@ import {
 } from "../vouchers/issuance.js";
 
 const voucherIssueBodySchema = voucherIssuanceBodyJsonSchema;
-
-const voucherIssuedDataSchema = {
-  type: "object",
-  properties: {
-    voucher_id: { type: "string" },
-    status: { const: "active" },
-    voucher_type: { type: "string" },
-  },
-  required: ["voucher_id", "status", "voucher_type"],
-} as const;
-
-const voucherPendingDataSchema = {
-  type: "object",
-  properties: {
-    request_id: { type: "string" },
-    status: { const: "pending" },
-    voucher_type: { type: "string" },
-  },
-  required: ["request_id", "status", "voucher_type"],
-} as const;
-
-const voucherIssueDataSchema = {
-  oneOf: [voucherIssuedDataSchema, voucherPendingDataSchema],
-} as const;
 
 const voucherLookupQuerySchema = {
   type: "object",
@@ -312,7 +289,7 @@ export function registerPartnerRoutes(app: FastifyInstance) {
         tags: ["partner"],
         body: voucherIssueBodySchema,
         response: {
-          200: successOrRefusalSchema(voucherIssueDataSchema),
+          200: successOrRefusalSchema(voucherIssuanceResponseDataJsonSchema),
           400: errorSchema,
           401: errorSchema,
         },

@@ -66,6 +66,30 @@ export const voucherIssuanceBodyJsonSchema = {
   ],
 } as const;
 
+export const voucherIssuedDataJsonSchema = {
+  type: "object",
+  properties: {
+    voucher_id: { type: "string" },
+    status: { const: "active" },
+    voucher_type: { type: "string" },
+  },
+  required: ["voucher_id", "status", "voucher_type"],
+} as const;
+
+export const voucherPendingDataJsonSchema = {
+  type: "object",
+  properties: {
+    request_id: { type: "string" },
+    status: { const: "pending" },
+    voucher_type: { type: "string" },
+  },
+  required: ["request_id", "status", "voucher_type"],
+} as const;
+
+export const voucherIssuanceResponseDataJsonSchema = {
+  oneOf: [voucherIssuedDataJsonSchema, voucherPendingDataJsonSchema],
+} as const;
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }

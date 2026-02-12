@@ -301,6 +301,30 @@ async function run() {
     assert.equal(overrideBody.success, false);
     assert.equal(overrideBody.reason, REFUSAL_REASONS.tenantContextMismatch);
 
+    const bodyOverrideResponse = await stewardApp.inject({
+      method: "POST",
+      url: "/v1/vouchers",
+      headers: { host },
+      payload: {
+        ...createIssuePayload({ voucher_type: "clothing" }),
+        tenant_id: "",
+      },
+    });
+    assert.equal(bodyOverrideResponse.statusCode, 200);
+    const bodyOverride = parseJson<{ success: boolean; reason?: string }>(bodyOverrideResponse.body);
+    assert.equal(bodyOverride.success, false);
+    assert.equal(bodyOverride.reason, REFUSAL_REASONS.tenantContextMismatch);
+
+    await assert.rejects(
+      db("voucher_authorizations")
+        .where({
+          voucher_id: issuedVoucherId,
+          tenant_id: tenantId,
+        })
+        .update({ first_name: "Mutated" }),
+      /immutable/i,
+    );
+
     await stewardApp.close();
     await initiateOnlyApp.close();
     await partnerApp.close();

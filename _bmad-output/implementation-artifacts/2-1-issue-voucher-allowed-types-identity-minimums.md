@@ -1,6 +1,6 @@
 # Story 2.1: Issue Voucher (Allowed Types + Identity Minimums)
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -154,11 +154,16 @@ GPT-5
 - Updated `/v1/vouchers` to support steward/admin and partner-token flows with refusal-envelope policy denials and tenant-context override refusal behavior.
 - Added HTTP-level integration coverage for AC1/AC4 boundary behavior, including partner attribution and pending request outcomes.
 - Wired new issuance integration test into `test:admin` so compose CI executes it.
+- Moved issuance response JSON schemas into shared `packages/contracts` and consumed those schemas from Fastify route registration.
+- Added strict context-override detection for tenant/partner keys even when empty-string values are submitted.
+- Added DB-level immutability enforcement for `voucher_authorizations` with trigger-backed migration.
+- Added regression coverage for body context override refusal and immutable authorization snapshot mutation attempts.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/2-1-issue-voucher-allowed-types-identity-minimums.md`
 - `apps/api/db/migrations/009_voucher_issuance_governance.ts`
+- `apps/api/db/migrations/010_voucher_authorizations_immutable.ts`
 - `apps/api/src/partner/issuance.ts`
 - `apps/api/src/partner/routes.ts`
 - `apps/api/src/vouchers/issuance.ts`
@@ -171,3 +176,17 @@ GPT-5
 ### Change Log
 
 - 2026-02-11: Implemented Story 2.1 issuance governance path, added HTTP boundary integration tests, and validated with full compose `test:db` suite.
+- 2026-02-12: Fixed code-review findings by sharing response schemas in contracts, hardening context-override refusal checks, enforcing DB immutability for authorization snapshots, and extending integration/tenant-isolation regression coverage. Re-validated with compose `test:db`.
+
+## Senior Developer Review (AI)
+
+- Date: 2026-02-12
+- Reviewer: Jeremiah (AI-assisted)
+- Outcome: All review findings addressed and verified.
+- Fixes applied:
+  - Shared issuance response schemas now live in `packages/contracts` and are consumed by `/v1/vouchers` route schema.
+  - Context override refusal now triggers when override keys are present in query/body even if values are empty.
+  - `voucher_authorizations` rows are enforced immutable at DB boundary via trigger migration.
+  - Regression tests now cover body override refusal and failed mutation of authorization snapshots.
+- Verification:
+  - `docker compose -f infra/docker/docker-compose.yml run --rm api-test pnpm test:db` passed.

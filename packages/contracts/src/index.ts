@@ -12,6 +12,9 @@ export {
   VOUCHER_ISSUANCE_LIMITS,
   DEFAULT_TENANT_ALLOWED_VOUCHER_TYPES,
   voucherIssuanceBodyJsonSchema,
+  voucherIssuedDataJsonSchema,
+  voucherPendingDataJsonSchema,
+  voucherIssuanceResponseDataJsonSchema,
   normalizeVoucherIssuancePayload,
   validateVoucherIssuancePayload,
 } from "./constants/voucher-issuance.js";
