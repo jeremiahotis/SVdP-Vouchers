@@ -157,6 +157,7 @@ GPT-5
 - Moved issuance response JSON schemas into shared `packages/contracts` and consumed those schemas from Fastify route registration.
 - Added strict context-override detection for tenant/partner keys even when empty-string values are submitted.
 - Added DB-level immutability enforcement for `voucher_authorizations` with trigger-backed migration.
+- Added follow-up immutability trigger compatibility migration to allow FK cleanup nullification of `partner_agency_id` without permitting snapshot field mutation.
 - Added regression coverage for body context override refusal and immutable authorization snapshot mutation attempts.
 
 ### File List
@@ -164,6 +165,7 @@ GPT-5
 - `_bmad-output/implementation-artifacts/2-1-issue-voucher-allowed-types-identity-minimums.md`
 - `apps/api/db/migrations/009_voucher_issuance_governance.ts`
 - `apps/api/db/migrations/010_voucher_authorizations_immutable.ts`
+- `apps/api/db/migrations/011_voucher_authorizations_immutable_fk_compat.ts`
 - `apps/api/src/partner/issuance.ts`
 - `apps/api/src/partner/routes.ts`
 - `apps/api/src/vouchers/issuance.ts`
@@ -177,6 +179,7 @@ GPT-5
 
 - 2026-02-11: Implemented Story 2.1 issuance governance path, added HTTP boundary integration tests, and validated with full compose `test:db` suite.
 - 2026-02-12: Fixed code-review findings by sharing response schemas in contracts, hardening context-override refusal checks, enforcing DB immutability for authorization snapshots, and extending integration/tenant-isolation regression coverage. Re-validated with compose `test:db`.
+- 2026-02-12: Patched immutability trigger for FK-compatibility to allow `partner_agency_id` nullification on partner delete paths while keeping authorization snapshots immutable otherwise. Re-validated with compose `test:db`.
 
 ## Senior Developer Review (AI)
 
@@ -187,6 +190,7 @@ GPT-5
   - Shared issuance response schemas now live in `packages/contracts` and are consumed by `/v1/vouchers` route schema.
   - Context override refusal now triggers when override keys are present in query/body even if values are empty.
   - `voucher_authorizations` rows are enforced immutable at DB boundary via trigger migration.
+  - Follow-up migration allows only FK-driven `partner_agency_id -> null` updates while denying all other authorization updates/deletes.
   - Regression tests now cover body override refusal and failed mutation of authorization snapshots.
 - Verification:
   - `docker compose -f infra/docker/docker-compose.yml run --rm api-test pnpm test:db` passed.
