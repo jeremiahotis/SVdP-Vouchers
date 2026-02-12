@@ -52,11 +52,11 @@ development_status:
 
   ci-compose-suite-optimizations: done
 
-  epic-2: backlog
-  2-1-issue-voucher-allowed-types-identity-minimums: backlog
-  2-2-duplicate-detection-policy-window: backlog
-  2-3-authorized-override-with-reason-audit: backlog
-  2-4-voucher-lookup-status-and-void-tenant-scoped: backlog
+  epic-2: in-progress
+  2-1-issue-voucher-allowed-types-identity-minimums: done
+  2-2-duplicate-detection-policy-window: ready-for-dev
+  2-3-authorized-override-with-reason-audit: ready-for-dev
+  2-4-voucher-lookup-status-and-void-tenant-scoped: ready-for-dev
   epic-2-retrospective: optional
 
   epic-3: backlog

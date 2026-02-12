@@ -36,6 +36,23 @@ function getLookupVoucherId(request: FastifyRequest): string | null {
   return query?.voucher_id ?? query?.voucherId ?? query?.id ?? null;
 }
 
+const CONTEXT_OVERRIDE_KEYS = [
+  "tenant_id",
+  "tenantId",
+  "partner_agency_id",
+  "partnerAgencyId",
+] as const;
+
+function hasContextOverride(container: Record<string, unknown> | undefined): boolean {
+  if (!container) {
+    return false;
+  }
+
+  return CONTEXT_OVERRIDE_KEYS.some((key) =>
+    Object.prototype.hasOwnProperty.call(container, key),
+  );
+}
+
 export async function tenantContextHook(
   request: FastifyRequest,
   reply: FastifyReply,
@@ -140,17 +157,7 @@ export async function tenantContextHook(
       partnerAgencyId?: string;
     }
     | undefined;
-  const hasContextOverride = Boolean(
-    query?.tenant_id ||
-      query?.tenantId ||
-      query?.partner_agency_id ||
-      query?.partnerAgencyId ||
-      body?.tenant_id ||
-      body?.tenantId ||
-      body?.partner_agency_id ||
-      body?.partnerAgencyId,
-  );
-  if (hasContextOverride) {
+  if (hasContextOverride(query) || hasContextOverride(body)) {
     await writeAuditEvent({
       tenantId,
       actorId,

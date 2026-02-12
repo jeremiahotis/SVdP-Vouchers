@@ -31,7 +31,7 @@ workflow_status:
   create-ux-design: _bmad-output/planning-artifacts/ux-design-specification.md
   create-architecture: _bmad-output/planning-artifacts/architecture.md
   create-epics-and-stories: required
-  test-design: optional
+  test-design: _bmad-output/test-design-epic-2.md
   implementation-readiness: required
   sprint-planning: required
 brainstorm_requested: "false"

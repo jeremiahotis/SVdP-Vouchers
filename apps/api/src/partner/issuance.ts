@@ -1,8 +1,13 @@
-import { randomUUID } from "crypto";
 import type { Knex } from "knex";
+import type { VoucherIssuancePayload } from "@voucher-shyft/contracts";
 import { writeAuditEvent } from "../audit/write.js";
 import { refusalReasons } from "../tenancy/refusal.js";
 import { getPartnerFormConfigByToken, isVoucherTypeAllowed } from "./form-config.js";
+import {
+  createIssuedVoucher,
+  getTenantAllowedVoucherTypes,
+  isVoucherTypeAllowed as isTenantVoucherTypeAllowed,
+} from "../vouchers/issuance.js";
 
 export type PartnerIssuanceResult =
   | { ok: true; voucherId: string; voucherType: string }
@@ -14,6 +19,7 @@ export async function issueVoucherForPartnerToken(params: {
   partnerAgencyId: string;
   tokenId: string;
   voucherType: string;
+  payload: VoucherIssuancePayload;
   correlationId: string;
 }): Promise<PartnerIssuanceResult> {
   const config = await getPartnerFormConfigByToken({
@@ -23,7 +29,16 @@ export async function issueVoucherForPartnerToken(params: {
     partnerAgencyId: params.partnerAgencyId,
   });
 
-  if (!config || !isVoucherTypeAllowed(config, params.voucherType)) {
+  const tenantAllowedTypes = await getTenantAllowedVoucherTypes({
+    db: params.db,
+    tenantId: params.tenantId,
+  });
+
+  if (
+    !config ||
+    !isVoucherTypeAllowed(config, params.voucherType) ||
+    !isTenantVoucherTypeAllowed(tenantAllowedTypes, params.voucherType)
+  ) {
     await writeAuditEvent({
       tenantId: params.tenantId,
       actorId: "partner_token",
@@ -40,26 +55,28 @@ export async function issueVoucherForPartnerToken(params: {
     };
   }
 
-  const voucherId = randomUUID();
   const normalizedVoucherType = params.voucherType.trim().toLowerCase();
 
-  await params.db("vouchers").insert({
-    id: voucherId,
-    tenant_id: params.tenantId,
-    status: "active",
-    partner_agency_id: params.partnerAgencyId,
+  const issued = await createIssuedVoucher({
+    db: params.db,
+    tenantId: params.tenantId,
+    voucherType: normalizedVoucherType,
+    payload: params.payload,
+    actorId: `partner_token:${params.tokenId}`,
+    issuerMode: "partner_token",
+    partnerAgencyId: params.partnerAgencyId,
   });
 
   await writeAuditEvent({
     tenantId: params.tenantId,
     actorId: "partner_token",
     eventType: "voucher.issued",
-    entityId: voucherId,
+    entityId: issued.voucherId,
     metadata: { voucher_type: normalizedVoucherType },
     partnerAgencyId: params.partnerAgencyId,
     correlationId: params.correlationId,
     dbOverride: params.db,
   });
 
-  return { ok: true, voucherId, voucherType: normalizedVoucherType };
+  return { ok: true, voucherId: issued.voucherId, voucherType: normalizedVoucherType };
 }

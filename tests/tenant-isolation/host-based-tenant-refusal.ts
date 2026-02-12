@@ -294,6 +294,22 @@ async function run() {
     assert.equal(bodyTenantReply.statusCode, 200);
     assert.equal(refusalReason(bodyTenantReply.body), REFUSAL_REASONS.tenantContextMismatch);
 
+    const emptyBodyTenantRequest = createRequest({
+      host: mismatchTenant.host,
+      db,
+      authContext: {
+        actorId: faker.string.uuid(),
+        tenantId: mismatchTenant.tenant_id,
+        roles: ["platform_admin"],
+      },
+      body: { tenant_id: "" },
+    });
+    const emptyBodyTenantReply = createReply();
+    await tenantContextHook(emptyBodyTenantRequest, emptyBodyTenantReply);
+
+    assert.equal(emptyBodyTenantReply.statusCode, 200);
+    assert.equal(refusalReason(emptyBodyTenantReply.body), REFUSAL_REASONS.tenantContextMismatch);
+
     // AC4: non-membership returns NOT_A_MEMBER (expected to fail until implemented).
     const memberTenant = createTenant();
     const memberApp = createTenantApp({
