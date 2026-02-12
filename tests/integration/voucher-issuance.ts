@@ -311,9 +311,24 @@ async function run() {
       },
     });
     assert.equal(bodyOverrideResponse.statusCode, 200);
-    const bodyOverride = parseJson<{ success: boolean; reason?: string }>(bodyOverrideResponse.body);
-    assert.equal(bodyOverride.success, false);
-    assert.equal(bodyOverride.reason, REFUSAL_REASONS.tenantContextMismatch);
+    const bodyOverride = parseJson<{
+      success: boolean;
+      data?: { voucher_id?: string; status?: string; voucher_type?: string };
+    }>(bodyOverrideResponse.body);
+    assert.equal(bodyOverride.success, true);
+    assert.equal(bodyOverride.data?.status, "active");
+    assert.equal(typeof bodyOverride.data?.voucher_id, "string");
+
+    const bodyOverrideVoucher = await waitForRow(async () =>
+      db("vouchers")
+        .select("id", "tenant_id")
+        .where({
+          id: bodyOverride.data?.voucher_id,
+          tenant_id: tenantId,
+        })
+        .first(),
+    );
+    assert.ok(bodyOverrideVoucher, "body tenant override must not change host-derived tenant scope");
 
     await assert.rejects(
       db("voucher_authorizations")
