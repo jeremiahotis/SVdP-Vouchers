@@ -255,6 +255,14 @@ async function run() {
       partnerAgencyId: partnerAgencyA,
       tokenId: partnerTokenAId,
       voucherType: "coats",
+      payload: {
+        voucher_type: "coats",
+        first_name: "Denied",
+        last_name: "Applicant",
+        date_of_birth: "1990-01-01",
+        household_adults: 1,
+        household_children: 0,
+      },
       correlationId: faker.string.uuid(),
     });
     assert.equal(denied.ok, false);
@@ -278,6 +286,14 @@ async function run() {
       partnerAgencyId: partnerAgencyA,
       tokenId: partnerTokenAId,
       voucherType: "furniture",
+      payload: {
+        voucher_type: "furniture",
+        first_name: "Allowed",
+        last_name: "Applicant",
+        date_of_birth: "1991-01-01",
+        household_adults: 1,
+        household_children: 1,
+      },
       correlationId: faker.string.uuid(),
     });
     assert.equal(allowed.ok, true);
@@ -338,7 +354,14 @@ async function run() {
         "content-type": "application/json",
         [PARTNER_TOKEN_HEADER]: partnerTokenA,
       },
-      payload: { voucher_type: "coats" },
+      payload: {
+        voucher_type: "coats",
+        first_name: "Partner",
+        last_name: "Denied",
+        date_of_birth: "1990-02-10",
+        household_adults: 1,
+        household_children: 0,
+      },
     });
     assert.equal(partnerRefusalResponse.statusCode, 200);
     const partnerRefusalBody = parseJson(partnerRefusalResponse.body) as {
@@ -473,7 +496,14 @@ async function run() {
         "content-type": "application/json",
         [PARTNER_TOKEN_HEADER]: partnerTokenASecondary,
       },
-      payload: { voucher_type: "clothing" },
+      payload: {
+        voucher_type: "clothing",
+        first_name: "Partner",
+        last_name: "Allowed",
+        date_of_birth: "1992-04-16",
+        household_adults: 1,
+        household_children: 2,
+      },
     });
     assert.equal(partnerIssueSuccessResponse.statusCode, 200);
     const partnerIssueSuccessBody = parseJson(partnerIssueSuccessResponse.body) as {

@@ -1,6 +1,6 @@
 # Story 2.1: Issue Voucher (Allowed Types + Identity Minimums)
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -22,24 +22,24 @@ so that eligible requests become valid vouchers with immutable authorization sna
 
 ## Tasks / Subtasks
 
-- [ ] Implement issuance contract and validation
-  - [ ] Define/extend shared request and response schemas in `packages/contracts` (snake_case fields only).
-  - [ ] Validate minimum identity payload (`first_name`, `last_name`, `date_of_birth`, household counts as required by policy).
-  - [ ] Enforce allowed voucher type list from tenant/partner configuration at API boundary.
-- [ ] Implement issuance domain flow
-  - [ ] Add issuance service under `apps/api/src/vouchers/` (or equivalent existing voucher domain path).
-  - [ ] Support two outcomes: active issued voucher vs initiate-only pending request.
-  - [ ] Persist immutable authorization snapshot on issuance (no post-issuance mutation).
-- [ ] Integrate role and partner-token paths
-  - [ ] Enforce role gates for steward/admin issuance permissions.
-  - [ ] Reuse partner-token context from Story 1.6; persist `partner_agency_id` attribution when partner token is used.
-  - [ ] Keep refusal/error split and `correlation_id` behavior consistent with Epic 1.
-- [ ] Add tests
-  - [ ] Integration test: steward issuance success for allowed type.
-  - [ ] Integration test: disallowed type refusal envelope.
-  - [ ] Integration test: initiate-only role produces pending record (no active voucher issuance).
-  - [ ] Integration test: partner-token issuance success + `partner_agency_id` attribution.
-  - [ ] Tenant-isolation test: body/query tenant override attempts are refused.
+- [x] Implement issuance contract and validation
+  - [x] Define/extend shared request and response schemas in `packages/contracts` (snake_case fields only).
+  - [x] Validate minimum identity payload (`first_name`, `last_name`, `date_of_birth`, household counts as required by policy).
+  - [x] Enforce allowed voucher type list from tenant/partner configuration at API boundary.
+- [x] Implement issuance domain flow
+  - [x] Add issuance service under `apps/api/src/vouchers/` (or equivalent existing voucher domain path).
+  - [x] Support two outcomes: active issued voucher vs initiate-only pending request.
+  - [x] Persist immutable authorization snapshot on issuance (no post-issuance mutation).
+- [x] Integrate role and partner-token paths
+  - [x] Enforce role gates for steward/admin issuance permissions.
+  - [x] Reuse partner-token context from Story 1.6; persist `partner_agency_id` attribution when partner token is used.
+  - [x] Keep refusal/error split and `correlation_id` behavior consistent with Epic 1.
+- [x] Add tests
+  - [x] Integration test: steward issuance success for allowed type.
+  - [x] Integration test: disallowed type refusal envelope.
+  - [x] Integration test: initiate-only role produces pending record (no active voucher issuance).
+  - [x] Integration test: partner-token issuance success + `partner_agency_id` attribution.
+  - [x] Tenant-isolation test: body/query tenant override attempts are refused.
 
 ## Dev Notes
 
@@ -140,14 +140,34 @@ GPT-5
 
 ### Debug Log References
 
-- Story preparation only (no implementation logs).
+- `infra/scripts/compose.sh run --rm --build api-test pnpm tsx tests/integration/voucher-issuance.ts`
+- `infra/scripts/compose.sh run --rm --build api-test pnpm tsx tests/integration/partner-form-config.ts`
+- `infra/scripts/compose.sh run --rm --build api-test pnpm test:admin`
+- `infra/scripts/compose.sh run --rm --build api-test pnpm test:db`
+- `infra/scripts/compose.sh run --rm --build api-test pnpm -C apps/api build`
 
 ### Completion Notes List
 
-- Story drafted with issuance guardrails for steward and partner-token paths.
-- Acceptance criteria and tasks aligned to Epic 2 FR coverage and existing Epic 1/4 foundations.
+- Added shared voucher issuance contract schema + payload normalization/validation for required identity minimums.
+- Added issuance governance migration for `voucher_type`, tenant allowed type config, immutable `voucher_authorizations`, and `voucher_requests`.
+- Implemented issuance domain service with tenant allowed-type resolution, role-based issue vs initiate-only behavior, and immutable snapshot persistence.
+- Updated `/v1/vouchers` to support steward/admin and partner-token flows with refusal-envelope policy denials and tenant-context override refusal behavior.
+- Added HTTP-level integration coverage for AC1/AC4 boundary behavior, including partner attribution and pending request outcomes.
+- Wired new issuance integration test into `test:admin` so compose CI executes it.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/2-1-issue-voucher-allowed-types-identity-minimums.md`
+- `apps/api/db/migrations/009_voucher_issuance_governance.ts`
+- `apps/api/src/partner/issuance.ts`
+- `apps/api/src/partner/routes.ts`
+- `apps/api/src/vouchers/issuance.ts`
+- `package.json`
+- `packages/contracts/src/constants/voucher-issuance.ts`
+- `packages/contracts/src/index.ts`
+- `tests/integration/partner-form-config.ts`
+- `tests/integration/voucher-issuance.ts`
 
+### Change Log
+
+- 2026-02-11: Implemented Story 2.1 issuance governance path, added HTTP boundary integration tests, and validated with full compose `test:db` suite.

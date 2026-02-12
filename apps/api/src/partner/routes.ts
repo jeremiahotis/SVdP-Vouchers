@@ -1,7 +1,9 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
   partnerFormConfigJsonSchema,
+  voucherIssuanceBodyJsonSchema,
   validatePartnerFormConfigPayload,
+  validateVoucherIssuancePayload,
 } from "@voucher-shyft/contracts";
 import { writeAuditEvent } from "../audit/write.js";
 import { errorSchema, successOrRefusalSchema } from "../schemas/response.js";
@@ -12,25 +14,38 @@ import {
   updateActivePartnerTokenFormConfig,
 } from "./form-config.js";
 import { issueVoucherForPartnerToken } from "./issuance.js";
+import {
+  createIssuedVoucher,
+  createPendingVoucherRequest,
+  getTenantAllowedVoucherTypes,
+  isVoucherTypeAllowed as isTenantVoucherTypeAllowed,
+  resolveAuthIssuanceMode,
+} from "../vouchers/issuance.js";
 
-const voucherIssueBodySchema = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    voucher_type: { type: "string", maxLength: 64 },
-    applicant_name: { type: "string", maxLength: 120, nullable: true },
-  },
-  required: ["voucher_type"],
-} as const;
+const voucherIssueBodySchema = voucherIssuanceBodyJsonSchema;
 
-const voucherIssueDataSchema = {
+const voucherIssuedDataSchema = {
   type: "object",
   properties: {
     voucher_id: { type: "string" },
-    status: { type: "string" },
+    status: { const: "active" },
     voucher_type: { type: "string" },
   },
   required: ["voucher_id", "status", "voucher_type"],
+} as const;
+
+const voucherPendingDataSchema = {
+  type: "object",
+  properties: {
+    request_id: { type: "string" },
+    status: { const: "pending" },
+    voucher_type: { type: "string" },
+  },
+  required: ["request_id", "status", "voucher_type"],
+} as const;
+
+const voucherIssueDataSchema = {
+  oneOf: [voucherIssuedDataSchema, voucherPendingDataSchema],
 } as const;
 
 const voucherLookupQuerySchema = {
@@ -304,10 +319,6 @@ export function registerPartnerRoutes(app: FastifyInstance) {
       },
     },
     async (request, reply) => {
-      if (!request.partnerContext) {
-        return refusalReply(reply, refusalReasons.notAuthorizedForAction, request.id);
-      }
-
       if (!request.db) {
         throw new Error("Database transaction unavailable");
       }
@@ -317,24 +328,141 @@ export function registerPartnerRoutes(app: FastifyInstance) {
         throw new Error("Tenant context unavailable");
       }
 
-      const voucherTypeRaw = (request.body as { voucher_type: string }).voucher_type;
-      const voucherType = voucherTypeRaw.trim().toLowerCase();
-      if (!voucherType) {
-        return badRequest(reply, request, "voucher_type is required");
+      const validatedPayload = validateVoucherIssuancePayload(request.body);
+      if (!validatedPayload.ok) {
+        return badRequest(
+          reply,
+          request,
+          validatedPayload.errors.map((error) => error.message).join("; "),
+        );
       }
 
-      const issuance = await issueVoucherForPartnerToken({
+      const voucherType = validatedPayload.value.voucher_type;
+      const tenantAllowedVoucherTypes = await getTenantAllowedVoucherTypes({
         db: request.db,
         tenantId,
-        partnerAgencyId: request.partnerContext.partnerAgencyId,
-        tokenId: request.partnerContext.tokenId,
-        voucherType,
-        correlationId: request.id,
       });
 
-      if (!issuance.ok) {
-        return refusalReply(reply, issuance.reason, request.id);
+      if (!isTenantVoucherTypeAllowed(tenantAllowedVoucherTypes, voucherType)) {
+        await writeAuditEvent({
+          tenantId,
+          actorId: request.partnerContext ? "partner_token" : request.authContext?.actorId ?? "anonymous",
+          eventType: request.partnerContext ? "partner.issuance.refused" : "voucher.issuance.refused",
+          reason: refusalReasons.notAuthorizedForAction,
+          metadata: {
+            voucher_type: voucherType,
+            reason_source: "tenant_allowed_voucher_types",
+          },
+          partnerAgencyId: request.partnerContext?.partnerAgencyId ?? null,
+          correlationId: request.id,
+          dbOverride: request.db,
+        });
+        return refusalReply(reply, refusalReasons.notAuthorizedForAction, request.id);
       }
+
+      if (request.partnerContext) {
+        const issuance = await issueVoucherForPartnerToken({
+          db: request.db,
+          tenantId,
+          partnerAgencyId: request.partnerContext.partnerAgencyId,
+          tokenId: request.partnerContext.tokenId,
+          voucherType,
+          payload: validatedPayload.value,
+          correlationId: request.id,
+        });
+
+        if (!issuance.ok) {
+          return refusalReply(reply, issuance.reason, request.id);
+        }
+
+        return reply
+          .header("content-type", "application/json")
+          .send(
+            JSON.stringify({
+              success: true,
+              data: {
+                voucher_id: issuance.voucherId,
+                status: "active",
+                voucher_type: issuance.voucherType,
+              },
+              correlation_id: request.id,
+            }),
+          );
+      }
+
+      if (!request.authContext) {
+        return refusalReply(reply, refusalReasons.notAuthorizedForAction, request.id);
+      }
+
+      const issuanceMode = await resolveAuthIssuanceMode({
+        db: request.db,
+        tenantId,
+        actorId: request.authContext.actorId,
+        authRoles: request.authContext.roles,
+      });
+
+      if (issuanceMode === "none") {
+        return refusalReply(reply, refusalReasons.notAuthorizedForAction, request.id);
+      }
+
+      if (issuanceMode === "initiate_only") {
+        const pending = await createPendingVoucherRequest({
+          db: request.db,
+          tenantId,
+          voucherType,
+          payload: validatedPayload.value,
+          actorId: request.authContext.actorId,
+        });
+
+        await writeAuditEvent({
+          tenantId,
+          actorId: request.authContext.actorId,
+          eventType: "voucher.requested",
+          entityId: pending.requestId,
+          metadata: {
+            voucher_type: voucherType,
+            status: "pending",
+          },
+          correlationId: request.id,
+          dbOverride: request.db,
+        });
+
+        return reply
+          .header("content-type", "application/json")
+          .send(
+            JSON.stringify({
+              success: true,
+              data: {
+                request_id: pending.requestId,
+                status: "pending",
+                voucher_type: voucherType,
+              },
+              correlation_id: request.id,
+            }),
+          );
+      }
+
+      const issued = await createIssuedVoucher({
+        db: request.db,
+        tenantId,
+        payload: validatedPayload.value,
+        voucherType,
+        actorId: request.authContext.actorId,
+        issuerMode: "auth",
+      });
+
+      await writeAuditEvent({
+        tenantId,
+        actorId: request.authContext.actorId,
+        eventType: "voucher.issued",
+        entityId: issued.voucherId,
+        metadata: {
+          voucher_type: voucherType,
+          issuer_mode: "auth",
+        },
+        correlationId: request.id,
+        dbOverride: request.db,
+      });
 
       return reply
         .header("content-type", "application/json")
@@ -342,9 +470,9 @@ export function registerPartnerRoutes(app: FastifyInstance) {
           JSON.stringify({
             success: true,
             data: {
-              voucher_id: issuance.voucherId,
+              voucher_id: issued.voucherId,
               status: "active",
-              voucher_type: issuance.voucherType,
+              voucher_type: voucherType,
             },
             correlation_id: request.id,
           }),
