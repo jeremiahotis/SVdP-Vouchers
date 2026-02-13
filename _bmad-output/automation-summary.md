@@ -1,140 +1,119 @@
-# Automation Summary - Story 2.2 Duplicate Detection (Policy Window)
+# Automation Summary - Story 2.3 Override with Reason Audit
 
-**Date:** 2026-02-12
-**Mode:** BMad-Integrated
-**Story:** `2-2-duplicate-detection-policy-window.md`
+**Date:** 2026-02-13  
+**Mode:** BMad-Integrated  
+**Target:** `2-3-authorized-override-with-reason-audit.md`  
 **Coverage Target:** critical-paths
 
-## Target Analysis
+## Tests Created / Expanded
 
-**Story Source:** `_bmad-output/implementation-artifacts/2-2-duplicate-detection-policy-window.md`
+### API Integration Tests
 
-**Acceptance Criteria Mapped:**
-
-1. In-window duplicate detection returns refusal/warning outcome.
-2. Duplicate checks are tenant-scoped only.
-3. Partner-token and JWT issuance paths use the same duplicate policy behavior.
-4. Duplicate outcomes follow FR0 envelope semantics with `correlation_id`.
-
-**Existing Coverage Gaps Found Before Generation:**
-
-- No integration automation for duplicate policy window behavior.
-- No tenant-isolation automation for duplicate-policy cross-tenant negative case.
-
-## Tests Created
-
-### API / Integration Tests
-
-- `tests/integration/voucher-duplicate-policy-window.ts` (293 lines)
-  - `[P0]` in-window steward duplicate refusal (`voucher_type + identity key`)
-  - `[P1]` out-of-window issuance allowed
-  - `[P0]` partner-token duplicate behavior parity with steward flow
-  - `[P1]` FR0 envelope correlation linkage on duplicate refusal
+- `tests/integration/voucher-override-with-reason.ts` (220 lines)
+  - [P0] Authorized override request proceeds to issuance and writes override audit event
+  - [P1] Missing override reason is refused (FR0 envelope)
+  - [P1] Unauthorized JWT role is refused (FR0 envelope)
+  - [P1] Partner-token override attempt is refused (FR0 envelope)
 
 ### Tenant Isolation Tests
 
-- `tests/tenant-isolation/voucher-duplicate-policy-window.ts` (211 lines)
-  - `[P0]` cross-tenant duplicate candidate does not block issuance in caller tenant
+- `tests/tenant-isolation/voucher-override-tenant-scope.ts` (110 lines)
+  - [P0] Cross-tenant duplicate reference in override payload must be refused
+  - Correlation-aware refusal expected
 
-## Infrastructure and Script Updates
+## Infrastructure Added
 
-- Updated `package.json`:
-  - `test:admin` now includes `tests/integration/voucher-duplicate-policy-window.ts`
-  - `test:tenant` now includes `tests/tenant-isolation/voucher-duplicate-policy-window.ts`
-- Updated docs:
-  - `tests/README.md` with Story 2.2 direct execution commands
-  - `tests/tenant-isolation/README.md` with duplicate-scope expectation
+### Factories
 
-## Validation Results
+- `tests/support/fixtures/factories/voucher-override-factory.ts`
+  - `createVoucherIssueBody(overrides?)`
+  - `createVoucherOverrideRequestBody(overrides?)`
 
-### Auto-Validate
+### Helpers
 
-`auto_validate`: true (executed)
+- `tests/support/helpers/voucher-integration-harness.ts`
+  - Fastify harness builders (`buildActorApp`, `buildPartnerApp`)
+  - Shared setup helpers (`seedTenant`, `seedDuplicateCandidate`)
+  - `parseJson` utility for typed envelope parsing
 
-### Run Commands
+### Docs
+
+- `tests/tenant-isolation/README.md` updated with override tenant-scope invariant
+
+## Validation Run (Auto-Validate)
+
+Auto-validate executed with compose build.
+
+### Command 1
 
 ```bash
-docker compose -f infra/docker/docker-compose.yml run --rm --build api-test pnpm tsx tests/integration/voucher-duplicate-policy-window.ts
-docker compose -f infra/docker/docker-compose.yml run --rm api-test pnpm tsx tests/tenant-isolation/voucher-duplicate-policy-window.ts
+docker compose -f infra/docker/docker-compose.yml run --rm --build api-test pnpm tsx tests/integration/voucher-override-with-reason.ts
 ```
 
-### Results
+**Result:** RED (expected)  
+**First failure:**
 
-- Integration duplicate-policy suite: **FAIL** (expected RED)
-  - First failure at `tests/integration/voucher-duplicate-policy-window.ts:212`
-  - Assertion expected duplicate refusal (`success === false`) but current behavior returned `success === true`
-- Tenant-isolation duplicate-policy suite: **PASS**
+```text
+AssertionError [ERR_ASSERTION]: false !== true
+at run (/app/tests/integration/voucher-override-with-reason.ts:125:12)
+```
 
-### Healing
+Interpretation: override-success path is not implemented yet.
 
-- `tea_use_mcp_enhancements`: false
-- Auto-healing loop: not executed (pattern per workflow when MCP enhancements are disabled)
+### Command 2
+
+```bash
+docker compose -f infra/docker/docker-compose.yml run --rm --build api-test pnpm tsx tests/tenant-isolation/voucher-override-tenant-scope.ts
+```
+
+**Result:** RED (expected)  
+**First failure:**
+
+```text
+actual: 'DUPLICATE_WARNING_REQUIRES_OVERRIDE'
+expected: 'NOT_AUTHORIZED_FOR_ACTION'
+at run (/app/tests/tenant-isolation/voucher-override-tenant-scope.ts:91:12)
+```
+
+Interpretation: tenant-scoped override-reference validation is not implemented yet.
+
+## Healing Status
+
+- Auto-heal: not enabled for this run
 - No `test.fixme()` markers applied
+- Failures are intentional RED-phase contract failures for Story 2.3 implementation
 
 ## Coverage Status
 
-**Total Scenarios Added:** 5
+- ✅ AC1 targeted: authorized override + append-only reason audit
+- ✅ AC2 targeted: unauthorized role and partner-token refusal
+- ✅ AC3 targeted: tenant-scope and correlation-aware refusal
+- ✅ AC4 targeted: explicit success vs refusal response shape
 
-- P0: 3
-- P1: 2
-- P2: 0
-- P3: 0
+## Official Documentation Cross-Check
 
-**Test Level Split:**
+Implementation/test recommendations were aligned with current official docs:
 
-- API/Integration: 4
-- Tenant-isolation integration: 1
-- E2E: 0
-- Component: 0
-- Unit: 0
+- Playwright Mock APIs: https://playwright.dev/docs/mock
+- Playwright Route API: https://playwright.dev/docs/api/class-route
+- Cypress `intercept`: https://docs.cypress.io/api/commands/intercept
+- Pact Provider Verification: https://docs.pact.io/getting_started/provider_verification
+- GitHub Actions workflow reference: https://docs.github.com/en/actions/reference/workflows-and-actions
 
-**Current Status vs Story 2.2:**
+## Run Commands for DEV
 
-- ✅ Tenant-scope negative behavior now covered.
-- ✅ Out-of-window acceptance path now covered.
-- ⚠️ In-window duplicate refusal behavior currently failing (implementation gap in `apps/api/src/vouchers`).
-- ⚠️ Partner-token parity for duplicate refusal currently failing (same implementation gap).
+```bash
+# Story-specific automation tests
+docker compose -f infra/docker/docker-compose.yml run --rm --build api-test pnpm tsx tests/integration/voucher-override-with-reason.ts
+docker compose -f infra/docker/docker-compose.yml run --rm --build api-test pnpm tsx tests/tenant-isolation/voucher-override-tenant-scope.ts
 
-## Definition of Done Check (Automation Workflow Scope)
+# Full quality gates after implementation
+docker compose -f infra/docker/docker-compose.yml run --rm api-test pnpm test:admin
+docker compose -f infra/docker/docker-compose.yml run --rm api-test pnpm test:tenant
+```
 
-- [x] Mode determined and story context loaded
-- [x] Framework configuration loaded (`playwright.config.ts` present)
-- [x] Coverage gaps analyzed
-- [x] Test targets identified and prioritized
-- [x] Duplicate coverage avoided (API + tenant-isolation only)
-- [x] Test files generated with Given-When-Then intent comments and priority markers
-- [x] Package scripts updated
-- [x] Test docs updated
-- [x] Generated tests validated by execution
-- [x] Validation results documented
+## Notes
 
-## Knowledge References Applied
-
-- `_bmad/bmm/testarch/knowledge/test-levels-framework.md`
-- `_bmad/bmm/testarch/knowledge/test-priorities-matrix.md`
-- `_bmad/bmm/testarch/knowledge/data-factories.md`
-- `_bmad/bmm/testarch/knowledge/selective-testing.md`
-- `_bmad/bmm/testarch/knowledge/ci-burn-in.md`
-- `_bmad/bmm/testarch/knowledge/test-quality.md`
-- `_bmad/bmm/testarch/knowledge/fixture-architecture.md`
-- `_bmad/bmm/testarch/knowledge/network-first.md`
-
-## Standards Cross-Check
-
-Checked against official references for current guidance:
-
-- Playwright Route Interception: <https://playwright.dev/docs/network>
-- Playwright `test.fixme` behavior: <https://playwright.dev/docs/test-annotations>
-- Cypress best practices: <https://docs.cypress.io/app/core-concepts/best-practices>
-- Pact docs (contract-testing context): <https://docs.pact.io/>
-- GitHub Actions workflow fundamentals: <https://docs.github.com/actions>
-
-## Next Steps
-
-1. Implement Story 2.2 duplicate-policy domain service and wire it into steward + partner issuance paths.
-2. Re-run:
-   - `docker compose -f infra/docker/docker-compose.yml run --rm api-test pnpm tsx tests/integration/voucher-duplicate-policy-window.ts`
-   - `docker compose -f infra/docker/docker-compose.yml run --rm api-test pnpm tsx tests/tenant-isolation/voucher-duplicate-policy-window.ts`
-3. Run full required gates:
-   - `docker compose -f infra/docker/docker-compose.yml run --rm api-test pnpm test:admin`
-   - `docker compose -f infra/docker/docker-compose.yml run --rm api-test pnpm test:tenant`
+- Tests intentionally remain RED until override contract, authorization gate, and audit event path are implemented.
+- Test files are kept under quality limits (all generated files are <300 lines except shared summary docs).
+- Existing duplicate-policy automation remains unchanged and reusable as baseline.

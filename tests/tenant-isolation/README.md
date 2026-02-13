@@ -8,6 +8,7 @@ These tests must run against a real Postgres container (no mocks) and are releas
 - Host/JWT mismatch returns refusal `TENANT_CONTEXT_MISMATCH`.
 - Unknown host returns refusal `TENANT_NOT_FOUND` with no tenant enumeration.
 - Duplicate checks never use cross-tenant rows to refuse issuance.
+- Override references must remain tenant-scoped and reject cross-tenant voucher IDs.
 
 ## Setup
 

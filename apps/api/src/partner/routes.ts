@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
+  VOUCHER_ISSUANCE_LIMITS,
   partnerFormConfigJsonSchema,
   voucherIssuanceBodyJsonSchema,
   voucherIssuanceResponseDataJsonSchema,
@@ -58,6 +59,8 @@ const emptyQuerySchema = {
   additionalProperties: false,
   properties: {},
 } as const;
+
+const AUTHORIZED_OVERRIDE_MEMBERSHIP_ROLES = ["store_admin", "steward"] as const;
 
 function refusalReply(reply: FastifyReply, reason: string, correlationId: string) {
   return reply
@@ -128,6 +131,47 @@ async function hasStoreAdminPermission(request: FastifyRequest): Promise<boolean
 
 function partnerFormConfigSchemaRecord(): Record<string, unknown> {
   return partnerFormConfigJsonSchema as unknown as Record<string, unknown>;
+}
+
+function normalizeOverrideReason(value: string | undefined): string {
+  if (typeof value !== "string") {
+    return "";
+  }
+  return value.replace(/\s+/g, " ").trim().slice(0, VOUCHER_ISSUANCE_LIMITS.maxOverrideReasonLength);
+}
+
+function hasOverrideAttempt(payload: {
+  override_reason?: string;
+  duplicate_reference_voucher_id?: string;
+}): boolean {
+  return (
+    typeof payload.override_reason !== "undefined" ||
+    typeof payload.duplicate_reference_voucher_id !== "undefined"
+  );
+}
+
+async function isAuthorizedOverrideActor(request: FastifyRequest): Promise<boolean> {
+  if (request.authContext?.roles.map((role) => role.trim().toLowerCase()).includes("platform_admin")) {
+    return true;
+  }
+
+  const tenantId = request.tenantContext?.tenantId;
+  const actorId = request.authContext?.actorId;
+  if (!tenantId || !actorId || !request.db) {
+    return false;
+  }
+
+  const allowedRoles = AUTHORIZED_OVERRIDE_MEMBERSHIP_ROLES.map((role) => role.toLowerCase());
+  const membership = await request.db("memberships")
+    .select("id")
+    .where({
+      tenant_id: tenantId,
+      actor_id: actorId,
+    })
+    .whereIn("role", allowedRoles)
+    .first();
+
+  return Boolean(membership);
 }
 
 export function registerPartnerRoutes(app: FastifyInstance) {
@@ -343,6 +387,7 @@ export function registerPartnerRoutes(app: FastifyInstance) {
           validatedPayload.errors.map((error) => error.message).join("; "),
         );
       }
+      const overrideAttempt = hasOverrideAttempt(validatedPayload.value);
 
       const voucherType = validatedPayload.value.voucher_type;
       const tenantAllowedVoucherTypes = await getTenantAllowedVoucherTypes({
@@ -368,6 +413,23 @@ export function registerPartnerRoutes(app: FastifyInstance) {
       }
 
       if (request.partnerContext) {
+        if (overrideAttempt) {
+          await writeAuditEvent({
+            tenantId,
+            actorId: "partner_token",
+            eventType: "partner.issuance.refused",
+            reason: refusalReasons.notAuthorizedForAction,
+            metadata: {
+              voucher_type: voucherType,
+              reason_source: "override_not_allowed_for_partner_token",
+            },
+            partnerAgencyId: request.partnerContext.partnerAgencyId,
+            correlationId: request.id,
+            dbOverride: request.db,
+          });
+          return refusalReply(reply, refusalReasons.notAuthorizedForAction, request.id);
+        }
+
         const duplicatePolicy = await evaluateDuplicatePolicy({
           db: request.db,
           tenantId,
@@ -436,6 +498,25 @@ export function registerPartnerRoutes(app: FastifyInstance) {
         return refusalReply(reply, refusalReasons.notAuthorizedForAction, request.id);
       }
 
+      if (overrideAttempt) {
+        const overrideAuthorized = await isAuthorizedOverrideActor(request);
+        if (!overrideAuthorized) {
+          await writeAuditEvent({
+            tenantId,
+            actorId: request.authContext.actorId,
+            eventType: "voucher.issuance.refused",
+            reason: refusalReasons.notAuthorizedForAction,
+            metadata: {
+              voucher_type: voucherType,
+              reason_source: "override_not_authorized",
+            },
+            correlationId: request.id,
+            dbOverride: request.db,
+          });
+          return refusalReply(reply, refusalReasons.notAuthorizedForAction, request.id);
+        }
+      }
+
       const issuanceMode = await resolveAuthIssuanceMode({
         db: request.db,
         tenantId,
@@ -491,6 +572,82 @@ export function registerPartnerRoutes(app: FastifyInstance) {
         payload: validatedPayload.value,
       });
       if (duplicatePolicy.outcome !== "no_match") {
+        if (
+          (duplicatePolicy.outcome === "warning" || duplicatePolicy.outcome === "refusal") &&
+          overrideAttempt
+        ) {
+          const overrideReason = normalizeOverrideReason(validatedPayload.value.override_reason);
+          const duplicateReferenceId = validatedPayload.value.duplicate_reference_voucher_id?.trim();
+          const overrideReasonValid = overrideReason.length > 0;
+          const referenceMatchesDuplicate =
+            typeof duplicateReferenceId === "string" &&
+            duplicateReferenceId.length > 0 &&
+            duplicateReferenceId === duplicatePolicy.matched_voucher_id;
+
+          if (!overrideReasonValid || !referenceMatchesDuplicate) {
+            await writeAuditEvent({
+              tenantId,
+              actorId: request.authContext.actorId,
+              eventType: "voucher.issuance.refused",
+              reason: refusalReasons.notAuthorizedForAction,
+              metadata: {
+                voucher_type: voucherType,
+                reason_source: !overrideReasonValid
+                  ? "override_reason_required"
+                  : "override_reference_mismatch",
+                duplicate_outcome: duplicatePolicy.outcome,
+                duplicate_window_days: duplicatePolicy.policy_window_days,
+                matched_voucher_id: duplicatePolicy.matched_voucher_id,
+                duplicate_reference_voucher_id: duplicateReferenceId ?? null,
+              },
+              correlationId: request.id,
+              dbOverride: request.db,
+            });
+            return refusalReply(reply, refusalReasons.notAuthorizedForAction, request.id);
+          }
+
+          const issuedOverride = await createIssuedVoucher({
+            db: request.db,
+            tenantId,
+            payload: validatedPayload.value,
+            voucherType,
+            actorId: request.authContext.actorId,
+            issuerMode: "auth",
+          });
+
+          await writeAuditEvent({
+            tenantId,
+            actorId: request.authContext.actorId,
+            eventType: "voucher.issuance.override",
+            entityId: issuedOverride.voucherId,
+            reason: overrideReason,
+            metadata: {
+              voucher_type: voucherType,
+              issuer_mode: "auth",
+              duplicate_outcome: duplicatePolicy.outcome,
+              duplicate_window_days: duplicatePolicy.policy_window_days,
+              duplicate_reference_voucher_id: duplicateReferenceId,
+              matched_voucher_id: duplicatePolicy.matched_voucher_id,
+            },
+            correlationId: request.id,
+            dbOverride: request.db,
+          });
+
+          return reply
+            .header("content-type", "application/json")
+            .send(
+              JSON.stringify({
+                success: true,
+                data: {
+                  voucher_id: issuedOverride.voucherId,
+                  status: "active",
+                  voucher_type: voucherType,
+                },
+                correlation_id: request.id,
+              }),
+            );
+        }
+
         await writeAuditEvent({
           tenantId,
           actorId: request.authContext.actorId,
