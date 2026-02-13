@@ -107,7 +107,7 @@ async function run() {
     const partnerApp = buildPartnerApp();
     await partnerApp.ready();
 
-    // [P0] Authorized override path should issue voucher and persist audit reason.
+    // [P0] Authorized override path should issue voucher and persist audit reason (warning mode).
     const authorizedResponse = await authorizedApp.inject({
       method: "POST",
       url: "/v1/vouchers",
@@ -138,6 +138,52 @@ async function run() {
     assert.ok(overrideAudit, "expected voucher.issuance.override audit event");
     assert.equal(overrideAudit.reason, "Approved exception with documented policy reason");
     assert.equal(typeof overrideAudit.correlation_id, "string");
+
+    process.env.VOUCHER_DUPLICATE_POLICY_ACTION = "refusal";
+    const refusalDuplicateVoucherId = await seedDuplicateCandidate({
+      db,
+      tenantId,
+      voucherType: "clothing",
+      firstName: "Jordan",
+      lastName: "Refusal",
+      dateOfBirth: "1991-03-20",
+      createdAt: new Date(),
+    });
+
+    // [P0] Authorized override path should also issue voucher when duplicate outcome is refusal.
+    const refusalOverrideResponse = await authorizedApp.inject({
+      method: "POST",
+      url: "/v1/vouchers",
+      headers: { host },
+      payload: createVoucherOverrideRequestBody({
+        first_name: "Jordan",
+        last_name: "Refusal",
+        date_of_birth: "1991-03-20",
+        duplicate_reference_voucher_id: refusalDuplicateVoucherId,
+      }),
+    });
+
+    assert.equal(refusalOverrideResponse.statusCode, 200);
+    const refusalOverrideBody = parseJson<Envelope>(refusalOverrideResponse.body);
+    assert.equal(refusalOverrideBody.success, true);
+    assert.equal(typeof refusalOverrideBody.data?.voucher_id, "string");
+
+    const refusalOverrideAudit = await db("audit_events")
+      .select("event_type", "reason", "correlation_id", "metadata")
+      .where({
+        tenant_id: tenantId,
+        actor_id: authorizedActorId,
+        event_type: "voucher.issuance.override",
+      })
+      .whereRaw("metadata->>'duplicate_reference_voucher_id' = ?", [refusalDuplicateVoucherId])
+      .first();
+
+    assert.ok(refusalOverrideAudit, "expected voucher.issuance.override audit event for refusal mode");
+    assert.equal(refusalOverrideAudit.reason, "Approved exception with documented policy reason");
+    assert.equal(refusalOverrideAudit.metadata?.duplicate_outcome, "refusal");
+    assert.equal(typeof refusalOverrideAudit.correlation_id, "string");
+
+    process.env.VOUCHER_DUPLICATE_POLICY_ACTION = "warning";
 
     // [P1] Missing override reason should be refused with FR0 envelope semantics.
     const missingReasonResponse = await authorizedApp.inject({

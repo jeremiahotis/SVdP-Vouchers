@@ -1,6 +1,6 @@
 # Story 2.3: Authorized Override with Reason Audit
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -21,24 +21,24 @@ so that policy exceptions are allowed but auditable.
 
 ## Tasks / Subtasks
 
-- [ ] Implement override request contract
-  - [ ] Define override payload (`override_reason` and any required duplicate reference metadata).
-  - [ ] Enforce required reason validation (non-empty, bounded length, sanitized).
-  - [ ] Reuse refusal reason constants for unauthorized/invalid override attempts.
-- [ ] Implement authorization and domain flow
-  - [ ] Add override gate in issuance path for duplicate outcomes.
-  - [ ] Authorize only allowed tenant roles (explicit role list in code, not implicit).
-  - [ ] Block partner-token override attempts by default.
-- [ ] Implement audit logging requirements
-  - [ ] Write append-only audit event for successful overrides with actor, tenant, reason, correlation_id.
-  - [ ] Log refusal outcomes for unauthorized attempts without creating successful issuance.
-  - [ ] Preserve partner attribution if override path later expands (currently refused for partner tokens).
-- [ ] Add tests
-  - [ ] Integration test: authorized override with reason issues voucher.
-  - [ ] Integration test: missing reason is refused.
-  - [ ] Integration test: unauthorized JWT role refused.
-  - [ ] Integration test: partner-token override refused.
-  - [ ] Audit test: override reason is persisted in append-only audit event.
+- [x] Implement override request contract
+  - [x] Define override payload (`override_reason` and any required duplicate reference metadata).
+  - [x] Enforce required reason validation (non-empty, bounded length, sanitized).
+  - [x] Reuse refusal reason constants for unauthorized/invalid override attempts.
+- [x] Implement authorization and domain flow
+  - [x] Add override gate in issuance path for duplicate outcomes.
+  - [x] Authorize only allowed tenant roles (explicit role list in code, not implicit).
+  - [x] Block partner-token override attempts by default.
+- [x] Implement audit logging requirements
+  - [x] Write append-only audit event for successful overrides with actor, tenant, reason, correlation_id.
+  - [x] Log refusal outcomes for unauthorized attempts without creating successful issuance.
+  - [x] Preserve partner attribution if override path later expands (currently refused for partner tokens).
+- [x] Add tests
+  - [x] Integration test: authorized override with reason issues voucher.
+  - [x] Integration test: missing reason is refused.
+  - [x] Integration test: unauthorized JWT role refused.
+  - [x] Integration test: partner-token override refused.
+  - [x] Audit test: override reason is persisted in append-only audit event.
 
 ## Dev Notes
 
@@ -143,14 +143,29 @@ GPT-5
 
 ### Debug Log References
 
-- Story preparation only (no implementation logs).
+- `docker compose -f infra/docker/docker-compose.yml run --rm --build api-test pnpm tsx tests/integration/voucher-override-with-reason.ts`
+- `docker compose -f infra/docker/docker-compose.yml run --rm --build api-test pnpm tsx tests/tenant-isolation/voucher-override-tenant-scope.ts`
+- `docker compose -f infra/docker/docker-compose.yml run --rm api-test pnpm test:admin`
+- `docker compose -f infra/docker/docker-compose.yml run --rm api-test pnpm test:tenant`
+- `docker compose -f infra/docker/docker-compose.yml run --rm api-test sh -lc 'pnpm tsx tests/integration/voucher-override-with-reason.ts && echo override_integration_passed && pnpm tsx tests/tenant-isolation/voucher-override-tenant-scope.ts && echo override_tenant_scope_passed'`
 
 ### Completion Notes List
 
-- Story drafted with strict override authorization boundaries and mandatory reason auditing.
-- Separation of concerns preserved between duplicate detection, override decisioning, and void workflow.
+- Added override fields to the issuance contract with schema and validation support for `override_reason` and `duplicate_reference_voucher_id`.
+- Implemented explicit override authorization allowlist (`store_admin`, `steward`, `platform_admin`) and blocked all partner-token override attempts.
+- Added duplicate warning override gate that requires sanitized non-empty reason and a tenant-scoped duplicate reference ID matching the duplicate-policy match.
+- Added append-only audit behavior for successful overrides (`voucher.issuance.override`) and refusal-path audit events for unauthorized/invalid override attempts.
+- Verified Story 2.3 integration and tenant-scope tests pass, and ran required compose suites (`test:admin`, `test:tenant`) with passing exit codes.
 
 ### File List
 
+- `apps/api/src/partner/routes.ts`
+- `packages/contracts/src/constants/voucher-issuance.ts`
+- `tests/integration/voucher-override-with-reason.ts`
+- `tests/tenant-isolation/voucher-override-tenant-scope.ts`
+- `tests/support/helpers/voucher-integration-harness.ts`
+- `tests/support/fixtures/factories/voucher-override-factory.ts`
+- `tests/tenant-isolation/README.md`
+- `_bmad-output/atdd-checklist-2-3-authorized-override-with-reason-audit.md`
+- `_bmad-output/automation-summary.md`
 - `_bmad-output/implementation-artifacts/2-3-authorized-override-with-reason-audit.md`
-

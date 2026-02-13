@@ -2,6 +2,7 @@ export const VOUCHER_ISSUANCE_LIMITS = {
   maxVoucherTypeLength: 64,
   maxNameLength: 80,
   maxHouseholdCount: 20,
+  maxOverrideReasonLength: 500,
 } as const;
 
 export const VOUCHER_DUPLICATE_POLICY_LIMITS = {
@@ -40,6 +41,8 @@ export type VoucherIssuancePayload = {
   date_of_birth: string;
   household_adults: number;
   household_children: number;
+  override_reason?: string;
+  duplicate_reference_voucher_id?: string;
 };
 
 const VOUCHER_ISSUANCE_FIELDS = [
@@ -49,6 +52,8 @@ const VOUCHER_ISSUANCE_FIELDS = [
   "date_of_birth",
   "household_adults",
   "household_children",
+  "override_reason",
+  "duplicate_reference_voucher_id",
 ] as const;
 
 export type VoucherIssuanceValidationError = {
@@ -77,6 +82,14 @@ export const voucherIssuanceBodyJsonSchema = {
       type: "integer",
       minimum: 0,
       maximum: VOUCHER_ISSUANCE_LIMITS.maxHouseholdCount,
+    },
+    override_reason: {
+      type: "string",
+      maxLength: VOUCHER_ISSUANCE_LIMITS.maxOverrideReasonLength,
+    },
+    duplicate_reference_voucher_id: {
+      type: "string",
+      format: "uuid",
     },
   },
   required: [
@@ -123,6 +136,10 @@ function normalizeText(value: string, maxLength: number): string {
 
 function normalizeVoucherType(value: string): string {
   return normalizeText(value, VOUCHER_ISSUANCE_LIMITS.maxVoucherTypeLength).toLowerCase();
+}
+
+function normalizeOverrideReason(value: string): string {
+  return normalizeText(value, VOUCHER_ISSUANCE_LIMITS.maxOverrideReasonLength);
 }
 
 function normalizeDateOfBirth(value: string): string {
@@ -183,6 +200,14 @@ export function normalizeVoucherIssuancePayload(input: unknown): VoucherIssuance
       typeof input.household_children === "number"
         ? normalizeHouseholdValue(input.household_children)
         : 0,
+    override_reason:
+      typeof input.override_reason === "string"
+        ? normalizeOverrideReason(input.override_reason)
+        : undefined,
+    duplicate_reference_voucher_id:
+      typeof input.duplicate_reference_voucher_id === "string"
+        ? input.duplicate_reference_voucher_id.trim()
+        : undefined,
   };
 }
 
@@ -267,6 +292,38 @@ export function validateVoucherIssuancePayload(input: unknown): VoucherIssuanceV
       field: "household_children",
       message: `household_children must be between 0 and ${VOUCHER_ISSUANCE_LIMITS.maxHouseholdCount}`,
     });
+  }
+
+  if (typeof input.override_reason !== "undefined") {
+    if (typeof input.override_reason !== "string") {
+      errors.push({
+        field: "override_reason",
+        message: "override_reason must be a string",
+      });
+    } else if (input.override_reason.length > VOUCHER_ISSUANCE_LIMITS.maxOverrideReasonLength) {
+      errors.push({
+        field: "override_reason",
+        message: `override_reason must not exceed ${VOUCHER_ISSUANCE_LIMITS.maxOverrideReasonLength} characters`,
+      });
+    }
+  }
+
+  if (typeof input.duplicate_reference_voucher_id !== "undefined") {
+    if (typeof input.duplicate_reference_voucher_id !== "string") {
+      errors.push({
+        field: "duplicate_reference_voucher_id",
+        message: "duplicate_reference_voucher_id must be a string",
+      });
+    } else {
+      const uuidPattern =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidPattern.test(input.duplicate_reference_voucher_id.trim())) {
+        errors.push({
+          field: "duplicate_reference_voucher_id",
+          message: "duplicate_reference_voucher_id must be a valid UUID",
+        });
+      }
+    }
   }
 
   if (errors.length > 0) {
